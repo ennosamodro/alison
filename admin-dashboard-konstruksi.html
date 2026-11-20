@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Progress Konstruksi — Admin</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --paper:#F6F4EF;
+    --surface:#FFFFFF;
+    --ink:#2A2420;
+    --ink-soft:#655C54;
+    --ink-faint:#A29A90;
+    --line:#E4DED4;
+    --line-strong:#D0C6B8;
+    --accent:#B23A2E;
+    --accent-dark:#7A231C;
+    --accent-fill:#F6E2DF;
+    --green:#3E7D53;
+    --green-fill:#E1EFE3;
+    --red:#B23A2E;
+    --mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans); font-size:14px; line-height:1.5;}
+  button{font-family:var(--sans);}
+
+  /* ---------- Landing ---------- */
+  #landingScreen{max-width:1040px; margin:40px auto; padding:0 24px;}
+  #landingScreen .landing-cta{max-width:640px;}
+  #newProjectFormWrap .new-project-form{max-width:640px;}
+  .landing-brand{display:flex; align-items:center; gap:12px; margin-bottom:32px;}
+  .brand-mark{
+    border-radius:9px; background:linear-gradient(135deg,#C1443A 0%,var(--accent) 45%,var(--accent-dark) 100%);
+    display:flex; align-items:center; justify-content:center; color:#fff; font-family:var(--mono); font-weight:700;
+  }
+  .landing-brand .brand-mark{width:40px; height:40px; font-size:14px;}
+  .landing-brand h1{font-size:18px; margin:0;}
+  .landing-brand .sub{font-size:12px; color:var(--ink-faint); font-family:var(--mono);}
+
+  .landing-cta{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    background:linear-gradient(135deg,#C1443A 0%,var(--accent) 55%,var(--accent-dark) 100%);
+    color:#fff; border-radius:12px; padding:18px 20px; cursor:pointer; border:none; width:100%;
+    margin-bottom:28px; text-align:left;
+  }
+  .landing-cta:hover{filter:brightness(1.05);}
+  .landing-cta .t{font-size:15px; font-weight:600; margin-bottom:3px;}
+  .landing-cta .d{font-size:12px; opacity:.85;}
+  .landing-cta .arrow{font-size:20px;}
+  .landing-stats{display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap;}
+  .stat-chip{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:12px 16px; flex:1; min-width:150px;}
+  .stat-chip .n{font-family:var(--mono); font-size:20px; font-weight:600;}
+  .stat-chip .n.warn{color:var(--red);}
+  .stat-chip .l{font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; margin-top:2px;}
+
+  .attention-box{background:var(--accent-fill); border:1px solid #E3B6AC; border-radius:10px; padding:4px; margin-bottom:20px;}
+  .attention-head{font-size:11px; color:var(--accent-dark); text-transform:uppercase; letter-spacing:.04em; font-weight:600; padding:10px 12px 6px;}
+  .attention-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--surface); border-radius:7px; padding:10px 14px; margin:4px; cursor:pointer;
+  }
+  .attention-row:hover{background:#FFFBF9;}
+  .attention-row .t{font-size:13px; font-weight:600;}
+  .attention-row .d{font-size:11px; color:var(--ink-faint); font-family:var(--mono);}
+  .landing-section-label{font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.05em; margin-bottom:10px;}
+  .proyek-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px;}
+  .proyek-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:10px;
+    padding:16px; cursor:pointer; transition:border-color .12s ease, box-shadow .12s ease;
+  }
+  .proyek-card:hover{border-color:var(--accent); box-shadow:0 2px 10px rgba(178,58,46,.08);}
+  .proyek-card-top{display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:12px;}
+  .proyek-card .t{font-size:14px; font-weight:600; line-height:1.35;}
+  .proyek-card .d{font-size:11px; color:var(--ink-faint); font-family:var(--mono); margin-top:3px;}
+  .dev-badge{font-family:var(--mono); font-size:11px; font-weight:600; padding:3px 8px; border-radius:20px; white-space:nowrap;}
+  .dev-badge.pos{color:var(--green); background:var(--green-fill);}
+  .dev-badge.neg{color:var(--red); background:var(--accent-fill);}
+  .progress-bar{position:relative; height:7px; background:var(--paper); border-radius:4px; margin-top:4px;}
+  .progress-fill{height:100%; border-radius:4px; background:linear-gradient(90deg,#C1443A,var(--accent-dark)); transition:width .4s ease;}
+  .progress-marker{position:absolute; top:-3px; width:2px; height:13px; background:var(--ink); border-radius:1px;}
+  .progress-labels{display:flex; justify-content:space-between; font-size:10.5px; color:var(--ink-faint); font-family:var(--mono); margin-top:6px;}
+  .progress-labels b{color:var(--ink-soft); font-weight:600;}
+  .new-project-form{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:20px;}
+  .new-project-form input{width:100%; font-size:14px; padding:10px 12px; border:1px solid var(--line-strong); border-radius:6px; margin-bottom:10px; background:var(--paper);}
+
+  /* Gate screens */
+  #passwordGateScreen, #pinGateScreen{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;}
+  .gate-box{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:36px 32px; max-width:380px; width:100%; text-align:center;}
+  .gate-box .brand-mark{width:44px; height:44px; font-size:15px; margin:0 auto 16px;}
+  .gate-box h1{font-size:16px; margin:0 0 4px;}
+  .gate-box .sub{font-size:12px; color:var(--ink-faint); margin-bottom:22px;}
+  .gate-box input{width:100%; font-family:var(--mono); font-size:16px; text-align:center; letter-spacing:.1em;
+    padding:12px 14px; border:1px solid var(--line-strong); border-radius:8px; margin-bottom:12px;}
+  .gate-box button{width:100%; background:var(--accent); color:#fff; border:none; border-radius:8px; padding:12px; font-size:14px; font-weight:600; cursor:pointer;}
+  .gate-box button:hover{background:var(--accent-dark);}
+  .gate-error{color:var(--red); font-size:12px; margin-top:10px; min-height:14px;}
+  .gate-hint{font-size:11px; color:var(--ink-faint); margin-top:14px; font-style:italic;}
+  .logged-as{display:flex; align-items:center; gap:8px; padding:12px 18px; border-top:1px solid var(--line); font-size:12px; color:var(--ink-soft);}
+  .logged-as button{background:none; border:none; color:var(--ink-faint); font-size:11px; cursor:pointer; text-decoration:underline; padding:0; margin-left:auto;}
+
+  /* ---------- Workspace shell ---------- */
+  .workspace-shell{display:flex; min-height:100vh; align-items:stretch;}
+  .sidebar{
+    width:236px; flex-shrink:0; background:var(--surface); border-right:1px solid var(--line);
+    display:flex; flex-direction:column; padding:16px 0;
+  }
+  .sidebar-top{padding:0 18px 16px; border-bottom:1px solid var(--line); margin-bottom:8px;}
+  .back-link{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); background:none; border:none; cursor:pointer; padding:4px 0; margin-bottom:10px;}
+  .back-link:hover{color:var(--ink);}
+  .sidebar-proyek{display:flex; align-items:center; gap:10px;}
+  .sidebar-proyek .brand-mark{width:32px; height:32px; font-size:11px;}
+  .sidebar-proyek .t{font-size:13px; font-weight:600; line-height:1.3;}
+  .sidebar nav{display:flex; flex-direction:column; gap:2px; padding:8px 10px;}
+  .sidebar nav button{
+    text-align:left; font-size:13px; padding:9px 12px; border:none; background:none; border-radius:7px;
+    color:var(--ink-soft); cursor:pointer;
+  }
+  .sidebar nav button.active{background:var(--accent-fill); color:var(--accent-dark); font-weight:600;}
+  .sidebar nav button:hover:not(.active){background:var(--paper);}
+  .sidebar-stats{margin-top:auto; padding:14px 18px 4px; border-top:1px solid var(--line);}
+  .sidebar-stats .row{display:flex; justify-content:space-between; font-size:12px; padding:4px 0; color:var(--ink-soft);}
+  .sidebar-stats .row b{font-family:var(--mono); color:var(--ink);}
+
+  .content-area{flex:1; min-width:0; padding:24px 32px 60px;}
+  .view{display:none;}
+  .view.active{display:block;}
+  .view-title{font-size:16px; font-weight:600; margin:0 0 18px;}
+
+  @media (max-width:760px){
+    .workspace-shell{flex-direction:column;}
+    .sidebar{width:100%; flex-direction:row; align-items:center; border-right:none; border-bottom:1px solid var(--line); padding:10px 12px; overflow-x:auto;}
+    .sidebar-top{border-bottom:none; margin-bottom:0; padding:0 10px 0 0; flex-shrink:0;}
+    .sidebar nav{flex-direction:row; padding:0;}
+    .sidebar-stats{display:none;}
+    .content-area{padding:18px 16px 50px;}
+  }
+
+  /* ---------- Cards / chart ---------- */
+  .ringkasan-grid{display:grid; grid-template-columns:220px 1fr; gap:20px;}
+  @media (max-width:900px){.ringkasan-grid{grid-template-columns:1fr;}}
+  .cards-col{display:flex; flex-direction:column; gap:10px;}
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:14px 16px;}
+  .card .label{font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; margin-bottom:6px;}
+  .card .value{font-size:22px; font-weight:600; font-family:var(--mono);}
+  .card .value.pos{color:var(--green);}
+  .card .value.neg{color:var(--red);}
+  .chart-panel{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:16px 18px;}
+  .chart-panel h4{font-size:12px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; margin:0 0 12px; font-weight:600;}
+  .chart-legend{display:flex; gap:16px; font-size:11px; color:var(--ink-soft); margin-bottom:8px;}
+  .chart-legend span{display:flex; align-items:center; gap:5px;}
+  .dot{width:9px; height:9px; border-radius:2px; display:inline-block;}
+
+  /* ---------- Weekbar / buttons ---------- */
+  .weekbar{display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:12px 16px; margin-bottom:16px; flex-wrap:wrap;}
+  .weekbar .wk{font-family:var(--mono); font-size:13px; color:var(--ink-soft);}
+  .weekbar .wk b{color:var(--ink); font-size:14px;}
+  button.primary{background:var(--accent); color:#fff; border:none; border-radius:6px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer;}
+  button.primary:hover{background:var(--accent-dark);}
+  button.ghost{background:none; border:1px solid var(--line-strong); border-radius:6px; padding:8px 14px; font-size:13px; cursor:pointer; color:var(--ink-soft);}
+  button.danger{background:none; border:1px solid var(--red); border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; color:var(--red);}
+
+  /* ---------- Input mingguan: two column ---------- */
+  .input-grid{display:grid; grid-template-columns:260px 1fr; gap:18px; align-items:start;}
+  @media (max-width:820px){.input-grid{grid-template-columns:1fr;}}
+  .kat-nav{background:var(--surface); border:1px solid var(--line); border-radius:8px; overflow:hidden;}
+  .kat-nav button{
+    width:100%; text-align:left; padding:12px 14px; border:none; background:none; cursor:pointer;
+    border-bottom:1px solid var(--line); font-size:13px; color:var(--ink-soft);
+  }
+  .kat-nav button:last-child{border-bottom:none;}
+  .kat-nav button.active{background:var(--accent-fill); color:var(--accent-dark); font-weight:600;}
+  .kat-nav .kcode{font-family:var(--mono); font-size:11px; color:var(--ink-faint); display:block; margin-bottom:2px;}
+  .kat-nav button.active .kcode{color:var(--accent-dark); opacity:.7;}
+
+  .item-panel{background:var(--surface); border:1px solid var(--line); border-radius:8px; overflow:hidden;}
+  .item-panel-head{padding:14px 18px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;}
+  .item-panel-head .kname{font-weight:600; font-size:14px;}
+  .item-panel-head .bobot{font-family:var(--mono); font-size:12px; color:var(--ink-faint);}
+  .item-row{display:grid; grid-template-columns:1fr 90px 100px 80px; gap:10px; align-items:center; padding:12px 18px; border-top:1px solid var(--line);}
+  .item-row:first-child{border-top:none;}
+  .item-name{font-size:13px;}
+  .item-loc{font-size:11px; color:var(--ink-faint); font-family:var(--mono);}
+  .item-row input[type=number]{width:100%; font-family:var(--mono); font-size:13px; padding:6px 8px; border:1px solid var(--line-strong); border-radius:5px; text-align:right;}
+  .item-row input[type=number]:focus{outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent);}
+  .item-weighted{font-family:var(--mono); font-size:12px; color:var(--ink-soft); text-align:right;}
+  .colhead{display:grid; grid-template-columns:1fr 90px 100px 80px; gap:10px; padding:8px 18px; background:var(--paper); border-top:1px solid var(--line); font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint);}
+  .colhead span:not(:first-child){text-align:right;}
+
+  footer.save-bar{position:sticky; bottom:0; background:var(--surface); border-top:1px solid var(--line-strong); padding:14px 0; display:flex; justify-content:flex-end; gap:10px; margin-top:20px;}
+
+  /* ---------- RAB / Edit ---------- */
+  .rab-form{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:20px;}
+  .rab-form h3{font-size:13px; margin:0 0 12px; font-weight:600;}
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .form-grid .full{grid-column:1/-1;}
+  .form-grid label{font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; display:block; margin-bottom:4px;}
+  .form-grid input, .form-grid select{width:100%; font-size:13px; padding:8px 10px; border:1px solid var(--line-strong); border-radius:6px; background:var(--paper);}
+  .form-actions{margin-top:14px; display:flex; justify-content:flex-end;}
+  .kategori{background:var(--surface); border:1px solid var(--line); border-radius:8px; margin-bottom:10px; overflow:hidden;}
+  .kategori-head{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px;}
+  .kategori-head .kname{font-weight:600; font-size:13px;}
+  .kategori-head .kcode{font-family:var(--mono); font-size:11px; color:var(--ink-faint); margin-right:8px;}
+  .kategori-meta{font-family:var(--mono); font-size:12px; color:var(--ink-soft);}
+
+  .edit-row{display:grid; grid-template-columns:1.4fr 1fr 70px 60px 70px 60px; gap:8px; align-items:center; padding:10px 16px; border-top:1px solid var(--line);}
+  .edit-row:first-child{border-top:none;}
+  .edit-row input{width:100%; font-size:12px; padding:6px 7px; border:1px solid var(--line-strong); border-radius:5px;}
+
+  /* ---------- Akses klien ---------- */
+  .akses-panel{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:20px;}
+  .akses-grid{display:grid; grid-template-columns:1fr 260px; gap:16px; max-width:820px;}
+  @media (max-width:760px){.akses-grid{grid-template-columns:1fr;}}
+  .share-panel{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:20px; display:flex; flex-direction:column; align-items:center; text-align:center;}
+  .share-panel h4{font-size:12px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; margin:0 0 14px; font-weight:600; align-self:flex-start;}
+  .share-panel img{border:1px solid var(--line); border-radius:8px; margin-bottom:10px;}
+  .warning-box{
+    display:flex; gap:8px; background:#FDF6ED; border:1px solid #EAD9B4; border-radius:8px;
+    padding:12px 14px; margin-top:16px; font-size:12px; color:#7A5B1E; line-height:1.5;
+  }
+  .akses-row{display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--line);}
+  .akses-row:last-child{border-bottom:none;}
+  .akses-label{font-size:12px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em;}
+  .kode-box{font-family:var(--mono); font-size:16px; font-weight:600; background:var(--paper); padding:8px 14px; border-radius:6px; letter-spacing:.03em;}
+  .toggle{display:flex; align-items:center; gap:8px; cursor:pointer;}
+  .toggle-track{width:38px; height:20px; border-radius:10px; background:var(--line-strong); position:relative; transition:background .15s ease;}
+  .toggle-track.on{background:var(--green);}
+  .toggle-dot{width:16px; height:16px; border-radius:50%; background:#fff; position:absolute; top:2px; left:2px; transition:left .15s ease;}
+  .toggle-track.on .toggle-dot{left:20px;}
+  .link-box{font-family:var(--mono); font-size:12px; color:var(--ink-soft); background:var(--paper); padding:10px 12px; border-radius:6px; word-break:break-all; margin-top:6px;}
+
+  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--ink); color:#fff; padding:10px 18px; border-radius:8px; font-size:13px; opacity:0; pointer-events:none; transition:all .2s ease; z-index:20;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .empty-hint{font-size:12px; color:var(--ink-faint); padding:8px 0 14px; font-style:italic;}
+  .dummy-flag{display:inline-block; font-family:var(--mono); font-size:10px; color:var(--accent-dark); background:var(--accent-fill); padding:2px 7px; border-radius:4px; margin-left:8px;}
+</style>
+</head>
+<body>
+
+<div id="passwordGateScreen">
+  <div class="gate-box">
+    <div class="brand-mark">GR</div>
+    <h1>Progress Konstruksi</h1>
+    <div class="sub">Akses terbatas — khusus tim internal</div>
+    <input type="password" id="passwordGlobal" placeholder="Password akses" onkeydown="if(event.key==='Enter') cekPasswordGlobal()">
+    <button onclick="cekPasswordGlobal()">Lanjut</button>
+    <div class="gate-error" id="passwordError"></div>
+    <div class="gate-hint">Password ini sama untuk semua tim, disimpan di Vercel Environment — bukan dicatat manual di sini.</div>
+  </div>
+</div>
+
+<div id="pinGateScreen" style="display:none;">
+  <div class="gate-box">
+    <div class="brand-mark">GR</div>
+    <h1>Siapa yang login?</h1>
+    <div class="sub">Masukkan PIN pribadi kamu</div>
+    <input type="password" id="pinAdmin" placeholder="PIN" maxlength="6" onkeydown="if(event.key==='Enter') cekPin()">
+    <button onclick="cekPin()">Masuk</button>
+    <div class="gate-error" id="pinError"></div>
+    <div class="gate-hint">Setiap perubahan yang kamu buat akan tercatat atas nama PIN ini.</div>
+  </div>
+</div>
+
+<div id="landingScreen" style="display:none;">
+  <div class="landing-brand">
+    <div class="brand-mark">GR</div>
+    <div><h1>Progress Konstruksi</h1><div class="sub">Login sebagai: <span id="loggedAsName">—</span> · <button class="ghost" style="padding:2px 8px; font-size:11px;" onclick="logoutAdmin()">Keluar</button></div></div>
+  </div>
+
+  <div id="newProjectFormWrap" style="display:none;">
+    <div class="new-project-form">
+      <label style="font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; display:block; margin-bottom:6px;">Nama proyek baru</label>
+      <input type="text" id="newProjectNama" placeholder="misal: Miral 6 Residence — Blok C41">
+      <label style="font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; display:block; margin-bottom:6px;">Tanggal mulai kerja</label>
+      <input type="date" id="newProjectTanggal">
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button class="ghost" onclick="document.getElementById('newProjectFormWrap').style.display='none'">Batal</button>
+        <button class="primary" onclick="buatProyekBaru()">Buat &amp; lanjut ke Setup RAB</button>
+      </div>
+    </div>
+  </div>
+
+  <button class="landing-cta" onclick="document.getElementById('newProjectFormWrap').style.display='block'">
+    <div><div class="t">+ Buat proyek baru</div><div class="d">Mulai proyek konstruksi baru dari nol, susun struktur RAB-nya</div></div>
+    <div class="arrow">&#8594;</div>
+  </button>
+
+  <div class="landing-stats" id="landingStats"></div>
+  <div id="attentionBox"></div>
+
+  <div class="landing-section-label">Proyek berjalan</div>
+  <input type="text" id="searchProyek" placeholder="Cari proyek..." oninput="renderLandingList()"
+    style="width:100%; font-size:13px; padding:9px 12px; border:1px solid var(--line-strong); border-radius:7px; background:var(--surface); margin-bottom:12px;">
+  <div class="proyek-grid" id="proyekList"></div>
+</div>
+
+<div id="workspaceScreen" class="workspace-shell" style="display:none;">
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <button class="back-link" onclick="kembaliKeLanding()">&#8592; Daftar proyek</button>
+      <div class="sidebar-proyek">
+        <div class="brand-mark">GR</div>
+        <div class="t" id="proyekAktifNama">—</div>
+      </div>
+    </div>
+    <nav>
+      <button class="active" data-view="ringkasan" onclick="switchTab('ringkasan')">Ringkasan</button>
+      <button data-view="rab" onclick="switchTab('rab')">Setup RAB</button>
+      <button data-view="input" onclick="switchTab('input')">Input mingguan</button>
+      <button data-view="edit" onclick="switchTab('edit')">Edit detail</button>
+      <button data-view="akses" onclick="switchTab('akses')">Akses klien</button>
+    </nav>
+    <div class="sidebar-stats">
+      <div class="row"><span>Minggu</span><b id="statMinggu">—</b></div>
+      <div class="row"><span>Realisasi</span><b id="statRealisasi">—</b></div>
+      <div class="row"><span>Deviasi</span><b id="statDeviasi">—</b></div>
+    </div>
+    <div class="logged-as">
+      <span>&#128100;</span><span id="sidebarLoggedAs">—</span>
+      <button onclick="logoutAdmin()">Keluar</button>
+    </div>
+  </aside>
+
+  <div class="content-area">
+
+    <section id="view-ringkasan" class="view active">
+      <h2 class="view-title">Ringkasan proyek</h2>
+      <div class="ringkasan-grid">
+        <div class="cards-col">
+          <div class="card"><div class="label">Minggu berjalan</div><div class="value" id="sumMinggu">—</div></div>
+          <div class="card"><div class="label">Rencana kumulatif</div><div class="value" id="sumRencana">—</div></div>
+          <div class="card"><div class="label">Realisasi kumulatif</div><div class="value" id="sumRealisasi">—</div></div>
+          <div class="card"><div class="label">Deviasi</div><div class="value" id="sumDeviasi">—</div></div>
+        </div>
+        <div class="chart-panel">
+          <h4>Kurva S — rencana vs realisasi</h4>
+          <div class="chart-legend">
+            <span><span class="dot" style="background:#2a78d6;"></span>Rencana</span>
+            <span><span class="dot" style="background:var(--accent);"></span>Realisasi</span>
+          </div>
+          <div style="position:relative; height:260px;"><canvas id="sCurveChart"></canvas></div>
+        </div>
+      </div>
+      <p class="empty-hint">Basisnya sama seperti hal 2–3 &amp; 10 laporan — dihitung otomatis dari input di tab "Input mingguan".<span class="dummy-flag">data dummy</span></p>
+    </section>
+
+    <section id="view-rab" class="view">
+      <h2 class="view-title">Setup RAB</h2>
+      <div class="rab-form">
+        <h3>Tambah item pekerjaan baru</h3>
+        <div class="form-grid">
+          <div><label>Kategori</label><select id="rabKategori"></select></div>
+          <div><label>Lokasi (opsional)</label><input type="text" id="rabLokasi" placeholder="misal: Lantai 2"></div>
+          <div class="full"><label>Nama item</label><input type="text" id="rabNama" placeholder="misal: Beton kolom K5 15/20"></div>
+          <div><label>Volume rencana</label><input type="number" id="rabVolume" step="0.01" placeholder="0.00"></div>
+          <div><label>Satuan</label><input type="text" id="rabSatuan" placeholder="m3 / m2 / Ls"></div>
+          <div class="full"><label>Bobot item (%)</label><input type="number" id="rabBobot" step="0.01" placeholder="0.00"></div>
+        </div>
+        <div class="form-actions"><button class="primary" onclick="tambahItemRAB()">Tambah item</button></div>
+      </div>
+      <p class="empty-hint">Dipakai sekali di awal proyek. Item yang masuk sini otomatis muncul di tab "Input mingguan".<span class="dummy-flag">data dummy</span></p>
+      <div id="rabPreview"></div>
+    </section>
+
+    <section id="view-input" class="view">
+      <h2 class="view-title">Input mingguan</h2>
+      <div class="weekbar" style="flex-direction:column; align-items:stretch;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div class="wk">Laporan <b id="weekNumLabel">Minggu ke-1</b></div>
+          <select id="mingguSelect" onchange="gantiMinggu(this.value)"
+            style="font-size:13px; padding:8px 12px; border:1px solid var(--line-strong); border-radius:6px; background:var(--surface); color:var(--ink-soft);"></select>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap;">
+          <label style="font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em;">Periode</label>
+          <input type="date" id="periodeMulai" onchange="tandaiPeriodeManual()" style="font-size:13px; padding:7px 10px; border:1px solid var(--line-strong); border-radius:6px;">
+          <span style="color:var(--ink-faint); font-size:13px;">s/d</span>
+          <input type="date" id="periodeAkhir" onchange="tandaiPeriodeManual()" style="font-size:13px; padding:7px 10px; border:1px solid var(--line-strong); border-radius:6px;">
+          <span class="dummy-flag" id="periodeSaran" style="display:none;">saran otomatis, bisa diubah</span>
+        </div>
+      </div>
+      <div class="input-grid">
+        <div class="kat-nav" id="katNav"></div>
+        <div class="item-panel">
+          <div class="item-panel-head">
+            <div class="kname" id="itemPanelTitle">—</div>
+            <div class="bobot" id="itemPanelBobot">—</div>
+          </div>
+          <div class="colhead"><span>Item</span><span>Vol. realisasi</span><span>Progress (%)</span><span>Bobot tertimbang</span></div>
+          <div id="itemPanelList"></div>
+        </div>
+      </div>
+
+      <div class="rab-form" style="margin-top:16px;">
+        <h3>Dokumentasi foto minggu ini</h3>
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <button class="primary" onclick="bukaFolderFoto()">&#128193; Buka folder foto Minggu ke-<span id="fotoBtnMinggu">1</span></button>
+          <span class="empty-hint" style="padding:0;">Folder dibuat & di-share otomatis oleh sistem — tinggal upload foto dari HP/kamera lapangan.</span>
+        </div>
+      </div>
+      <footer class="save-bar">
+        <button class="ghost" onclick="alert('Dummy: draft disimpan lokal, belum ke Sheets')">Simpan draft</button>
+        <button class="primary" onclick="submitMinggu()">Submit &amp; kirim laporan</button>
+      </footer>
+    </section>
+
+    <section id="view-edit" class="view">
+      <h2 class="view-title">Edit detail item</h2>
+      <p class="empty-hint" style="padding-top:0;">Ubah atau hapus item yang sudah ada — buat revisi RAB di tengah jalan, bukan buat isi progress mingguan.<span class="dummy-flag">data dummy</span></p>
+      <div class="edit-row" style="font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint); background:var(--paper); border-radius:6px;">
+        <span>Nama item</span><span>Lokasi</span><span>Volume</span><span>Satuan</span><span>Bobot %</span><span></span>
+      </div>
+      <div id="editList" style="background:var(--surface); border:1px solid var(--line); border-radius:8px; border-top:none;"></div>
+    </section>
+
+    <section id="view-akses" class="view">
+      <h2 class="view-title">Akses klien</h2>
+      <div class="akses-grid">
+        <div class="akses-panel">
+          <div class="akses-row">
+            <div>
+              <div class="akses-label">Kode akses proyek</div>
+              <div class="kode-box" id="klienKode">—</div>
+            </div>
+            <button class="ghost" onclick="generateKode()">Generate ulang</button>
+          </div>
+          <div class="akses-row">
+            <div class="akses-label">Status akses klien</div>
+            <div class="toggle" onclick="toggleAkses()">
+              <div class="toggle-track" id="toggleTrack"><div class="toggle-dot"></div></div>
+              <span id="toggleLabel" style="font-size:13px;">Aktif</span>
+            </div>
+          </div>
+          <div>
+            <div class="akses-label" style="margin-bottom:6px;">Link dashboard klien</div>
+            <div class="link-box" id="klienLink">—</div>
+          </div>
+          <div class="warning-box">
+            <span>&#9888;</span>
+            <span>Perlakukan link ini seperti password. Siapa pun yang membuka link bisa melihat data proyek — bagikan langsung ke klien, jangan diteruskan ke grup terbuka. Kalau link ini sudah tersebar terlalu luas, klik "Generate ulang" untuk mematikan link lama.</span>
+          </div>
+        </div>
+        <div class="share-panel">
+          <h4>Scan untuk klien</h4>
+          <img id="qrImage" width="180" height="180" alt="QR kode akses klien">
+          <div class="empty-hint" style="padding:0;">Praktis dipakai pas ketemu klien di lapangan — tinggal scan, tanpa ketik manual.</div>
+        </div>
+      </div>
+      <p class="empty-hint">Kode ini yang klien masukin di dashboard read-only. Nonaktifkan kapan saja tanpa menghapus data proyek.<span class="dummy-flag">data dummy</span></p>
+    </section>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DATA = {
+  c40: {
+    nama: "Miral 6 Residence — Blok C40",
+    minggu: 3, rencanaKumulatif: 4.76, realisasiKumulatif: 20.35,
+    mulaiTanggal: "2026-08-26",
+    akses: { kode: "C40-MIRAL6-X7K2", aktif: true },
+    kategori: [
+      { kode:"K01", nama:"Pekerjaan pendahuluan", bobot:1.55, items:[
+        { nama:"Air kerja — pembuatan sumur bor", lokasi:"", volRencana:1, satuan:"Ls", bobotItem:1.20, progressMingguIni:0 },
+        { nama:"Pembersihan ringan area kerja", lokasi:"", volRencana:69, satuan:"m2", bobotItem:0.14, progressMingguIni:0 },
+      ]},
+      { kode:"K06", nama:"Pekerjaan beton kolom", bobot:5.79, items:[
+        { nama:"Beton kolom K1 20/40", lokasi:"Lantai dasar", volRencana:0.56, satuan:"m3", bobotItem:0.63, progressMingguIni:0 },
+        { nama:"Beton kolom K2 15/30", lokasi:"Lantai dasar", volRencana:1.73, satuan:"m3", bobotItem:1.93, progressMingguIni:0 },
+        { nama:"Beton kolom K3 15/25", lokasi:"Lantai 2", volRencana:0.52, satuan:"m3", bobotItem:0.57, progressMingguIni:0 },
+        { nama:"Beton kolom K4 15/20", lokasi:"Lantai 2", volRencana:0.90, satuan:"m3", bobotItem:0.99, progressMingguIni:0 },
+      ]},
+      { kode:"K10", nama:"Penutup lantai & fasade", bobot:12.42, items:[
+        { nama:"Kisi-kisi besi hollow 4/6 finish cat", lokasi:"Fasade tampak", volRencana:6.75, satuan:"m2", bobotItem:1.03, progressMingguIni:0 },
+        { nama:"Lantai utama granite tile 60x60 glossy", lokasi:"Lantai 1", volRencana:31.40, satuan:"m2", bobotItem:2.30, progressMingguIni:0 },
+        { nama:"Lantai utama granite tile 60x60 glossy", lokasi:"Lantai 2", volRencana:34.21, satuan:"m2", bobotItem:2.50, progressMingguIni:0 },
+      ]},
+      { kode:"K11", nama:"Pekerjaan dinding", bobot:19.37, items:[
+        { nama:"Pasangan dinding bata ringan", lokasi:"Lantai 1", volRencana:123.56, satuan:"m2", bobotItem:3.02, progressMingguIni:0 },
+        { nama:"Plesteran dinding", lokasi:"Lantai 1", volRencana:209.23, satuan:"m2", bobotItem:3.19, progressMingguIni:0 },
+        { nama:"Pasangan dinding bata ringan", lokasi:"Lantai 2", volRencana:152.37, satuan:"m2", bobotItem:3.72, progressMingguIni:0 },
+      ]},
+    ]
+  },
+  d12: {
+    nama: "Grand Wisata — Blok D12",
+    minggu: 1, rencanaKumulatif: 1.10, realisasiKumulatif: 0.95,
+    mulaiTanggal: "2026-09-08",
+    akses: { kode: "D12-GWISATA-P9M4", aktif: false },
+    kategori: [
+      { kode:"K01", nama:"Pekerjaan pendahuluan", bobot:1.40, items:[
+        { nama:"Pengukuran lahan & bouplank", lokasi:"", volRencana:40, satuan:"m1", bobotItem:0.30, progressMingguIni:0 },
+      ]},
+      { kode:"K04", nama:"Pekerjaan pondasi beton", bobot:4.10, items:[
+        { nama:"Pondasi batu kali", lokasi:"", volRencana:12, satuan:"m3", bobotItem:2.05, progressMingguIni:0 },
+      ]},
+    ]
+  }
+};
+
+let current = null;
+let activeKategoriKode = null;
+let sCurveChartInstance = null;
+let loggedInAdmin = null;
+
+// Dummy — di produksi ini dicek server-side via Apps Script, bukan di JS browser
+const PASSWORD_GLOBAL = "demo123";
+const ADMIN_PINS = {
+  "1234": "Admin Demo — Owner",
+  "5678": "Pengawas Demo — Pengawas Lapangan"
+};
+
+function cekPasswordGlobal(){
+  const val = document.getElementById('passwordGlobal').value;
+  const err = document.getElementById('passwordError');
+  if(val !== PASSWORD_GLOBAL){
+    err.textContent = 'Password salah.';
+    return;
+  }
+  err.textContent = '';
+  document.getElementById('passwordGateScreen').style.display = 'none';
+  document.getElementById('pinGateScreen').style.display = 'flex';
+}
+
+function cekPin(){
+  const val = document.getElementById('pinAdmin').value;
+  const err = document.getElementById('pinError');
+  if(!ADMIN_PINS[val]){
+    err.textContent = 'PIN tidak dikenali.';
+    return;
+  }
+  err.textContent = '';
+  loggedInAdmin = ADMIN_PINS[val];
+  document.getElementById('pinGateScreen').style.display = 'none';
+  document.getElementById('landingScreen').style.display = 'block';
+  document.getElementById('loggedAsName').textContent = loggedInAdmin;
+  renderLandingList();
+}
+
+function logoutAdmin(){
+  loggedInAdmin = null;
+  document.getElementById('pinAdmin').value = '';
+  document.getElementById('passwordGlobal').value = '';
+  document.getElementById('landingScreen').style.display = 'none';
+  document.getElementById('workspaceScreen').style.display = 'none';
+  document.getElementById('passwordGateScreen').style.display = 'flex';
+}
+
+function fmt(n){ return n.toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+function renderLandingStats(){
+  const keys = Object.keys(DATA);
+  const total = keys.length;
+  const devs = keys.map(k => DATA[k].realisasiKumulatif - DATA[k].rencanaKumulatif);
+  const butuhPerhatian = devs.filter(d => d < 0).length;
+  const rataDev = devs.length ? devs.reduce((a,b)=>a+b,0)/devs.length : 0;
+  document.getElementById('landingStats').innerHTML = `
+    <div class="stat-chip"><div class="n">${total}</div><div class="l">Proyek aktif</div></div>
+    <div class="stat-chip"><div class="n ${butuhPerhatian>0?'warn':''}">${butuhPerhatian}</div><div class="l">Butuh perhatian</div></div>
+    <div class="stat-chip"><div class="n">${rataDev>=0?'+':''}${fmt(rataDev)}%</div><div class="l">Rata-rata deviasi</div></div>
+  `;
+
+  const bermasalah = keys.filter(k => (DATA[k].realisasiKumulatif - DATA[k].rencanaKumulatif) < 0);
+  const box = document.getElementById('attentionBox');
+  if(!bermasalah.length){ box.innerHTML = ''; return; }
+  box.innerHTML = `
+    <div class="attention-box">
+      <div class="attention-head">&#9888; Perlu perhatian — realisasi di bawah rencana</div>
+      ${bermasalah.map(key => {
+        const p = DATA[key];
+        const dev = p.realisasiKumulatif - p.rencanaKumulatif;
+        return `<div class="attention-row" onclick="masukProyek('${key}')">
+          <div><div class="t">${p.nama}</div><div class="d">Minggu ke-${p.minggu} · realisasi ${fmt(p.realisasiKumulatif)}%</div></div>
+          <div class="dev-badge neg">${fmt(dev)}%</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function renderLandingList(){
+  renderLandingStats();
+  const wrap = document.getElementById('proyekList');
+  const q = (document.getElementById('searchProyek')?.value || '').toLowerCase().trim();
+  const keys = Object.keys(DATA).filter(key => DATA[key].nama.toLowerCase().includes(q) || key.toLowerCase().includes(q));
+  if(!keys.length){
+    wrap.innerHTML = `<div style="grid-column:1/-1; padding:30px; text-align:center; color:var(--ink-faint); font-size:13px;">Tidak ada proyek yang cocok dengan "${q}"</div>`;
+    return;
+  }
+  wrap.innerHTML = keys.map(key => {
+    const p = DATA[key];
+    const dev = p.realisasiKumulatif - p.rencanaKumulatif;
+    const fillPct = Math.min(100, Math.max(0, p.realisasiKumulatif));
+    const markerPct = Math.min(100, Math.max(0, p.rencanaKumulatif));
+    return `<div class="proyek-card" onclick="masukProyek('${key}')">
+      <div class="proyek-card-top">
+        <div><div class="t">${p.nama}</div><div class="d">ID: ${key} · Minggu ke-${p.minggu}</div></div>
+        <div class="dev-badge ${dev>=0?'pos':'neg'}">${dev>=0?'+':''}${fmt(dev)}%</div>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width:${fillPct}%;"></div>
+        <div class="progress-marker" style="left:${markerPct}%;" title="Target rencana: ${fmt(p.rencanaKumulatif)}%"></div>
+      </div>
+      <div class="progress-labels">
+        <span>Realisasi <b>${fmt(p.realisasiKumulatif)}%</b></span>
+        <span>Rencana <b>${fmt(p.rencanaKumulatif)}%</b></span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function masukProyek(key){
+  current = key;
+  selectedMinggu = null;
+  activeKategoriKode = DATA[key].kategori.length ? DATA[key].kategori[0].kode : null;
+  document.getElementById('landingScreen').style.display = 'none';
+  document.getElementById('workspaceScreen').style.display = 'flex';
+  document.getElementById('proyekAktifNama').textContent = DATA[key].nama;
+  document.getElementById('sidebarLoggedAs').textContent = loggedInAdmin;
+  switchTab('ringkasan');
+  renderAll();
+}
+
+function kembaliKeLanding(){
+  current = null;
+  document.getElementById('workspaceScreen').style.display = 'none';
+  document.getElementById('landingScreen').style.display = 'block';
+  document.getElementById('newProjectFormWrap').style.display = 'none';
+  renderLandingList();
+}
+
+function buatProyekBaru(){
+  const nama = document.getElementById('newProjectNama').value.trim();
+  const tanggal = document.getElementById('newProjectTanggal').value || new Date().toISOString().slice(0,10);
+  if(!nama){ alert('Isi nama proyek dulu'); return; }
+  const key = 'proyek_' + Date.now();
+  DATA[key] = { nama, minggu:0, rencanaKumulatif:0, realisasiKumulatif:0, mulaiTanggal: tanggal,
+    akses:{ kode: generateKodeString(nama), aktif:true },
+    kategori:[{ kode:"K01", nama:"Pekerjaan pendahuluan", bobot:0, items:[] }] };
+  document.getElementById('newProjectNama').value = '';
+  document.getElementById('newProjectTanggal').value = '';
+  document.getElementById('newProjectFormWrap').style.display = 'none';
+  masukProyek(key);
+  switchTab('rab');
+}
+
+function switchTab(view){
+  document.querySelectorAll('.sidebar nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  if(view==='ringkasan') setTimeout(renderChart, 30);
+}
+
+function renderAll(){
+  renderRingkasan();
+  renderRabForm();
+  renderKatNav();
+  renderWeekbar();
+  renderEdit();
+  renderAkses();
+  setTimeout(renderChart, 30);
+}
+
+function renderRingkasan(){
+  const p = DATA[current];
+  document.getElementById('sumMinggu').textContent = p.minggu;
+  document.getElementById('sumRencana').textContent = fmt(p.rencanaKumulatif)+'%';
+  document.getElementById('sumRealisasi').textContent = fmt(p.realisasiKumulatif)+'%';
+  const dev = p.realisasiKumulatif - p.rencanaKumulatif;
+  const devEl = document.getElementById('sumDeviasi');
+  devEl.textContent = (dev>=0?'+':'')+fmt(dev)+'%';
+  devEl.className = 'value ' + (dev>=0 ? 'pos':'neg');
+  document.getElementById('statMinggu').textContent = p.minggu;
+  document.getElementById('statRealisasi').textContent = fmt(p.realisasiKumulatif)+'%';
+  document.getElementById('statDeviasi').textContent = (dev>=0?'+':'')+fmt(dev)+'%';
+}
+
+function renderChart(){
+  const p = DATA[current];
+  const canvas = document.getElementById('sCurveChart');
+  if(!canvas) return;
+  const weeks = Array.from({length:12}, (_,i)=>i);
+  const rencana = weeks.map(w => Math.min(100, +(p.rencanaKumulatif * (w/Math.max(p.minggu,1)) * 1.4).toFixed(2)));
+  const realisasi = weeks.map(w => w<=p.minggu ? +(p.realisasiKumulatif * (w/Math.max(p.minggu,1))).toFixed(2) : null);
+  if(sCurveChartInstance) sCurveChartInstance.destroy();
+  sCurveChartInstance = new Chart(canvas, {
+    type:'line',
+    data:{ labels:weeks, datasets:[
+      { label:'Rencana', data:rencana, borderColor:'#2a78d6', borderWidth:2, pointRadius:0, tension:.35 },
+      { label:'Realisasi', data:realisasi, borderColor:'#B23A2E', backgroundColor:'#B23A2E', borderWidth:2, pointRadius:(c)=>c.dataIndex===p.minggu?6:3, spanGaps:false }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(c)=>c.dataset.label+': '+c.parsed.y+'%'}} },
+      scales:{ x:{title:{display:true,text:'Minggu ke-',font:{size:10}}, grid:{display:false}},
+               y:{min:0,max:100,title:{display:true,text:'% kumulatif',font:{size:10}}} } }
+  });
+}
+
+function renderRabForm(){
+  const p = DATA[current];
+  const sel = document.getElementById('rabKategori');
+  sel.innerHTML = p.kategori.map(k => `<option value="${k.kode}">${k.kode} — ${k.nama}</option>`).join('');
+  const preview = document.getElementById('rabPreview');
+  preview.innerHTML = p.kategori.map(k => `
+    <div class="kategori">
+      <div class="kategori-head"><div class="kname"><span class="kcode">${k.kode}</span>${k.nama}</div><div class="kategori-meta">${k.items.length} item</div></div>
+      ${k.items.map(it => `<div class="edit-row" style="grid-template-columns:1fr 90px 70px;">
+        <div><div style="font-size:13px;">${it.nama}</div>${it.lokasi?`<div class="item-loc">${it.lokasi}</div>`:''}</div>
+        <div class="item-weighted">${it.volRencana} ${it.satuan}</div><div class="item-weighted">${fmt(it.bobotItem)}%</div></div>`).join('')}
+    </div>`).join('');
+}
+
+function tambahItemRAB(){
+  const p = DATA[current];
+  const kodeKategori = document.getElementById('rabKategori').value;
+  const nama = document.getElementById('rabNama').value.trim();
+  const lokasi = document.getElementById('rabLokasi').value.trim();
+  const volume = parseFloat(document.getElementById('rabVolume').value) || 0;
+  const satuan = document.getElementById('rabSatuan').value.trim() || '-';
+  const bobot = parseFloat(document.getElementById('rabBobot').value) || 0;
+  if(!nama){ showToast('Isi nama item dulu'); return; }
+  const kat = p.kategori.find(k => k.kode === kodeKategori);
+  kat.items.push({ nama, lokasi, volRencana:volume, satuan, bobotItem:bobot, progressMingguIni:0 });
+  ['rabNama','rabLokasi','rabVolume','rabSatuan','rabBobot'].forEach(id=>document.getElementById(id).value='');
+  renderRabForm(); renderKatNav(); renderEdit();
+  showToast(`Item "${nama}" ditambahkan ke ${kodeKategori}`);
+}
+
+function renderKatNav(){
+  const p = DATA[current];
+  const wrap = document.getElementById('katNav');
+  if(!p.kategori.find(k=>k.kode===activeKategoriKode)) activeKategoriKode = p.kategori[0]?.kode || null;
+  wrap.innerHTML = p.kategori.map(k => `
+    <button class="${k.kode===activeKategoriKode?'active':''}" onclick="pilihKategori('${k.kode}')">
+      <span class="kcode">${k.kode} · ${fmt(k.bobot)}%</span>${k.nama}
+    </button>`).join('');
+  renderItemPanel();
+}
+
+function pilihKategori(kode){
+  activeKategoriKode = kode;
+  renderKatNav();
+}
+
+function renderItemPanel(){
+  const p = DATA[current];
+  const k = p.kategori.find(x => x.kode === activeKategoriKode);
+  if(!k){ document.getElementById('itemPanelList').innerHTML=''; return; }
+  document.getElementById('itemPanelTitle').textContent = k.nama;
+  document.getElementById('itemPanelBobot').textContent = 'bobot ' + fmt(k.bobot) + '%';
+  document.getElementById('itemPanelList').innerHTML = k.items.map((it, ii) => `
+    <div class="item-row">
+      <div><div class="item-name">${it.nama}</div><div class="item-loc">${it.lokasi ? it.lokasi+' · ':''}${it.volRencana} ${it.satuan} rencana</div></div>
+      <input type="number" step="0.01" min="0" value="0" oninput="updateItem('${k.kode}',${ii},'volRealisasi',this.value)">
+      <input type="number" step="1" min="0" max="100" value="0" oninput="updateItem('${k.kode}',${ii},'progressMingguIni',this.value)">
+      <div class="item-weighted" id="weighted-${k.kode}-${ii}">0,00%</div>
+    </div>`).join('') || '<div class="item-row"><div class="item-loc">Belum ada item di kategori ini.</div></div>';
+}
+
+function updateItem(kodeKategori, itemIndex, field, value){
+  const p = DATA[current];
+  const kat = p.kategori.find(k => k.kode === kodeKategori);
+  const item = kat.items[itemIndex];
+  item[field] = parseFloat(value) || 0;
+  const weighted = (item.bobotItem * (item.progressMingguIni/100));
+  document.getElementById(`weighted-${kodeKategori}-${itemIndex}`).textContent = fmt(weighted)+'%';
+}
+
+function renderEdit(){
+  const p = DATA[current];
+  const wrap = document.getElementById('editList');
+  wrap.innerHTML = '';
+  p.kategori.forEach(k => {
+    k.items.forEach((it, ii) => {
+      const row = document.createElement('div');
+      row.className = 'edit-row';
+      row.innerHTML = `
+        <input type="text" value="${it.nama}" onchange="editField('${k.kode}',${ii},'nama',this.value)">
+        <input type="text" value="${it.lokasi}" onchange="editField('${k.kode}',${ii},'lokasi',this.value)">
+        <input type="number" step="0.01" value="${it.volRencana}" onchange="editField('${k.kode}',${ii},'volRencana',this.value)">
+        <input type="text" value="${it.satuan}" onchange="editField('${k.kode}',${ii},'satuan',this.value)">
+        <input type="number" step="0.01" value="${it.bobotItem}" onchange="editField('${k.kode}',${ii},'bobotItem',this.value)">
+        <button class="danger" onclick="hapusItem('${k.kode}',${ii})">Hapus</button>`;
+      wrap.appendChild(row);
+    });
+  });
+}
+
+function editField(kodeKategori, itemIndex, field, value){
+  const p = DATA[current];
+  const item = p.kategori.find(k => k.kode === kodeKategori).items[itemIndex];
+  item[field] = (field==='volRencana'||field==='bobotItem') ? (parseFloat(value)||0) : value;
+  renderRabForm(); renderKatNav();
+  showToast('Item diperbarui');
+}
+
+function hapusItem(kodeKategori, itemIndex){
+  const p = DATA[current];
+  const kat = p.kategori.find(k => k.kode === kodeKategori);
+  const nama = kat.items[itemIndex].nama;
+  if(!confirm(`Hapus "${nama}"?`)) return;
+  kat.items.splice(itemIndex, 1);
+  renderRabForm(); renderKatNav(); renderEdit();
+  showToast(`Item "${nama}" dihapus`);
+}
+
+function generateKodeString(nama){
+  const initials = nama.replace(/[^A-Za-z0-9 ]/g,'').split(' ').filter(Boolean).slice(0,2).map(w=>w.substring(0,4).toUpperCase()).join('-');
+  const rand = Math.random().toString(36).substring(2,6).toUpperCase();
+  return (initials || 'PRJ') + '-' + rand;
+}
+
+function renderAkses(){
+  const p = DATA[current];
+  document.getElementById('klienKode').textContent = p.akses.kode;
+  document.getElementById('toggleTrack').classList.toggle('on', p.akses.aktif);
+  document.getElementById('toggleLabel').textContent = p.akses.aktif ? 'Aktif' : 'Nonaktif';
+  const link = `https://progress.example.com/klien?kode=${p.akses.kode}`;
+  document.getElementById('klienLink').textContent = p.akses.aktif ? link : '(nonaktif — link tidak akan menampilkan data)';
+  const qr = document.getElementById('qrImage');
+  qr.src = p.akses.aktif
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(link)}`
+    : '';
+  qr.style.opacity = p.akses.aktif ? '1' : '.3';
+}
+
+function generateKode(){
+  const p = DATA[current];
+  p.akses.kode = generateKodeString(p.nama);
+  renderAkses();
+  showToast('Kode akses baru dibuat. Kode lama otomatis tidak berlaku.');
+}
+
+function toggleAkses(){
+  const p = DATA[current];
+  p.akses.aktif = !p.akses.aktif;
+  renderAkses();
+  showToast(p.akses.aktif ? 'Akses klien diaktifkan' : 'Akses klien dinonaktifkan');
+}
+
+function getWeekPeriodDates(startDateStr, weekNum){
+  const start = new Date(startDateStr + 'T00:00:00');
+  const weekStart = new Date(start); weekStart.setDate(start.getDate() + (weekNum-1)*7);
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+  return { start: weekStart.toISOString().slice(0,10), end: weekEnd.toISOString().slice(0,10) };
+}
+function getCurrentWeekNumber(startDateStr){
+  const start = new Date(startDateStr + 'T00:00:00');
+  const today = new Date();
+  const diffDays = Math.floor((today - start) / 86400000);
+  return Math.max(1, Math.floor(diffDays/7) + 1);
+}
+let selectedMinggu = 1;
+let periodeManual = false;
+
+function renderWeekbar(){
+  const p = DATA[current];
+  const startDate = p.mulaiTanggal || new Date().toISOString().slice(0,10);
+  const currentWeek = getCurrentWeekNumber(startDate);
+  if(!selectedMinggu || selectedMinggu > currentWeek + 4) selectedMinggu = currentWeek;
+  document.getElementById('weekNumLabel').textContent = `Minggu ke-${selectedMinggu}`;
+
+  const sel = document.getElementById('mingguSelect');
+  sel.innerHTML = '';
+  for(let w=1; w<=currentWeek; w++){
+    const opt = document.createElement('option');
+    opt.value = w;
+    opt.textContent = `Minggu ke-${w}`;
+    if(w===selectedMinggu) opt.selected = true;
+    sel.appendChild(opt);
+  }
+
+  if(!periodeManual){
+    const { start, end } = getWeekPeriodDates(startDate, selectedMinggu);
+    document.getElementById('periodeMulai').value = start;
+    document.getElementById('periodeAkhir').value = end;
+    document.getElementById('periodeSaran').style.display = 'inline-block';
+  }
+  document.getElementById('fotoBtnMinggu').textContent = selectedMinggu;
+}
+function gantiMinggu(val){
+  selectedMinggu = parseInt(val);
+  periodeManual = false;
+  renderWeekbar();
+}
+function tandaiPeriodeManual(){
+  periodeManual = true;
+  document.getElementById('periodeSaran').style.display = 'none';
+}
+
+function bukaFolderFoto(){
+  const p = DATA[current];
+  showToast(`Dummy: folder "/${current}/Minggu-${selectedMinggu}/" dibuat & di-share otomatis (belum tersambung ke Drive beneran)`);
+}
+
+function submitMinggu(){
+  const mulai = document.getElementById('periodeMulai').value;
+  const akhir = document.getElementById('periodeAkhir').value;
+  showToast(`Minggu ke-${selectedMinggu} (${mulai} s/d ${akhir}) tersimpan — diisi oleh ${loggedInAdmin}. (Belum tersambung ke Google Sheets)`);
+}
+
+function showToast(msg){
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'), 3200);
+}
+
+// renderLandingList() dipanggil setelah login PIN berhasil (lihat cekPin)
+</script>
+
+<!-- MODE DEMO (presentasi): kursor penunjuk + auto-isi password. HAPUS dua tag ini saat disambung ke Apps Script. -->
+<script>
+(function(){
+  var shown = function(id){ var e=document.getElementById(id); return !!e && e.style.display!=='none'; };
+  var view  = function(v){ var e=document.getElementById('view-'+v); return !!e && e.classList.contains('active'); };
+  var inWs  = function(){ return shown('workspaceScreen'); };
+  window.DEMO_GUIDE = {
+    resetWhen: function(){ return shown('passwordGateScreen'); },
+    fields: [
+      { selector:'#passwordGlobal', value:'demo123', label:'Password demo: <b>demo123</b>' },
+      { selector:'#pinAdmin',       value:'1234',    label:'PIN demo: <b>1234</b> (Owner) / <b>5678</b> (Pengawas)' }
+    ],
+    steps: [
+      { id:'pw',  kind:'type',  target:'#passwordGlobal', show:function(){return shown('passwordGateScreen');}, doneWhen:function(){return !shown('passwordGateScreen') || document.getElementById('passwordGlobal').value==='demo123';},
+        text:'Gerbang pertama: <b>password tim</b>. Ketik apa saja, otomatis terisi.' },
+      { id:'pwb', kind:'click', target:'#passwordGateScreen button', show:function(){return shown('passwordGateScreen');},
+        text:'Klik <b>Lanjut</b>.' },
+      { id:'pin', kind:'type',  target:'#pinAdmin', show:function(){return shown('pinGateScreen');}, doneWhen:function(){return !shown('pinGateScreen') || document.getElementById('pinAdmin').value==='1234';},
+        text:'Gerbang kedua: <b>PIN pribadi</b>. Tiap perubahan tercatat atas nama PIN ini (audit).' },
+      { id:'pinb',kind:'click', target:'#pinGateScreen button', show:function(){return shown('pinGateScreen');},
+        text:'Klik <b>Masuk</b>.' },
+
+      { id:'lstat',kind:'info', target:'#landingStats', show:function(){return shown('landingScreen');},
+        text:'Ringkasan semua proyek sekaligus: jumlah proyek, yang butuh perhatian, rata-rata deviasi.' },
+      { id:'lwarn',kind:'info', target:'#attentionBox .attention-box', show:function(){return shown('landingScreen');},
+        text:'Proyek yang realisasinya <b>di bawah rencana</b> otomatis muncul di sini.' },
+      { id:'lnew', kind:'info', target:'.landing-cta', show:function(){return shown('landingScreen');},
+        text:'Mulai proyek baru dari sini: isi nama + tanggal, lanjut susun RAB.' },
+      { id:'lopen',kind:'click',target:'#proyekList .proyek-card', show:function(){return shown('landingScreen');},
+        text:'Klik proyek untuk masuk ke workspace-nya.' },
+
+      { id:'wsum', kind:'info', target:'.chart-panel', show:function(){return inWs() && view('ringkasan');},
+        text:'<b>Kurva S</b>: rencana vs realisasi. Dihitung otomatis dari input mingguan.' },
+      { id:'nrab', kind:'click',target:'nav button[data-view="rab"]', show:inWs, doneWhen:function(){return view('rab')||view('input')||view('edit')||view('akses');},
+        text:'Buka tab <b>Setup RAB</b>.' },
+      { id:'wrab', kind:'info', target:'#view-rab .rab-form', show:function(){return inWs() && view('rab');},
+        text:'Dipakai di awal proyek: tambah item pekerjaan, volume, dan bobot.' },
+      { id:'nin',  kind:'click',target:'nav button[data-view="input"]', show:inWs, doneWhen:function(){return view('input')||view('edit')||view('akses');},
+        text:'Lanjut ke <b>Input mingguan</b>.' },
+      { id:'wkat', kind:'info', target:'#katNav', show:function(){return inWs() && view('input');},
+        text:'Pilih kategori pekerjaan di sini.' },
+      { id:'witm', kind:'info', target:'#itemPanelList', show:function(){return inWs() && view('input');},
+        text:'Isi volume atau progress per item. <b>Bobot tertimbang</b> terhitung otomatis.' },
+      { id:'wfoto',kind:'info', target:'#view-input .rab-form button', show:function(){return inWs() && view('input');},
+        text:'Foto lapangan: buka folder Drive minggu ini, upload dari HP.' },
+      { id:'wsub', kind:'info', target:'.save-bar .primary', show:function(){return inWs() && view('input');},
+        text:'<b>Submit</b> mengirim laporan minggu ini. Klien langsung bisa melihatnya.' },
+      { id:'ned',  kind:'click',target:'nav button[data-view="edit"]', show:inWs, doneWhen:function(){return view('edit')||view('akses');},
+        text:'Buka <b>Edit detail</b>.' },
+      { id:'wed',  kind:'info', target:'#editList', show:function(){return inWs() && view('edit');},
+        text:'Revisi RAB di tengah jalan: ubah atau hapus item tanpa menyentuh Sheets.' },
+      { id:'nak',  kind:'click',target:'nav button[data-view="akses"]', show:inWs, doneWhen:function(){return view('akses');},
+        text:'Terakhir: <b>Akses klien</b>.' },
+      { id:'wkode',kind:'info', target:'#klienKode', show:function(){return inWs() && view('akses');},
+        text:'Kode akses khusus proyek ini. Bisa <b>generate ulang</b> kalau bocor.' },
+      { id:'wtog', kind:'info', target:'.toggle', show:function(){return inWs() && view('akses');},
+        text:'Matikan akses klien kapan saja, data proyek tetap aman.' },
+      { id:'wqr',  kind:'info', target:'.share-panel', show:function(){return inWs() && view('akses');},
+        text:'QR untuk klien. Cukup scan di lapangan, tanpa ketik kode.' }
+    ]
+  };
+})();
+</script>
+<script src="demo-guide.js"></script>
+</body>
+</html>

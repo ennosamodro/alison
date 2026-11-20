@@ -1,0 +1,134 @@
+# CLAUDE.md — Dashboard Progres Proyek Konstruksi (Alison)
+
+Catatan arahan untuk Claude Code. Baca sampai habis sebelum nulis kode Apps Script.
+Pemilik repo: Lenno (freelancer, Surabaya). Bahasa kerja: Indonesia informal.
+
+## Tujuan
+
+Klien (perusahaan konstruksi, brand merah "Alisons") dulu bikin laporan progres mingguan pakai Excel lalu kirim PDF
+(contoh: laporan Miral 6 Residence Blok C40). Kita pindahkan ke sistem:
+
+1. **Dashboard admin** — tim klien input progres mingguan, kelola proyek, kelola akses klien.
+2. **Dashboard klien (read-only)** — pemilik proyek buka pakai link + kode akses, lihat progres proyeknya saja.
+3. **Google Sheets = database/sumber kebenaran.** Apps Script Web App = satu-satunya gerbang. HTML statis di Vercel.
+
+Yang ditampilkan ke klien = setara halaman 2-3 PDF (rekap per kategori) dan halaman 10 (kurva S / time schedule),
+plus foto & aktivitas minggu itu. Logika hitung detail di PDF lainnya tetap di sisi admin/Sheets.
+
+## Status sekarang
+
+Dua prototype HTML dengan **data dummy di memori browser** (belum nyambung ke Sheets):
+
+- `admin-dashboard-konstruksi.html` — gate password global → PIN admin → landing (daftar proyek, cari, buat proyek) →
+  workspace per proyek dengan tab: Ringkasan (kurva S Chart.js), Setup RAB, Input mingguan, Edit detail, Akses klien.
+- `klien-dashboard-konstruksi.html` — gate kode akses (auto-isi dari `?kode=`), pilih minggu, kartu ringkasan,
+  kurva S, rekap kategori (klik baris → detail item), galeri foto, aktivitas & rencana minggu depan.
+
+**Semua validasi di prototype (password, PIN, kode) hanya dummy di JS browser.** Di produksi WAJIB di server (Apps Script).
+Jangan pernah kirim data proyek ke browser sebelum kode divalidasi server.
+
+## Arsitektur
+
+```
+Browser (HTML statis, Vercel)  ──fetch──▶  Apps Script Web App (doGet/doPost)  ──▶  Google Sheets (private)
+                                                         └────────────────────────▶  Google Drive (foto)
+```
+
+- Web App: *Execute as: Me*, *Who has access: Anyone*. Sheets tetap private; hanya script yang membacanya.
+  Execute-as hanya soal siapa yang menjalankan script. Kepemilikan Sheets tidak berpindah.
+  Folder/file **baru** yang dibuat script dimiliki akun eksekutor.
+- Semua request lewat satu endpoint dengan parameter `action`. Respon JSON.
+- Frontend deploy via GitHub → Vercel auto-deploy. Password global disimpan di Vercel env var, bukan di HTML.
+- Aturan performa & reliabilitas GAS: ikuti skill `gas-performance`. Pola stack ini: skill `gas-sheets-vercel-dashboard`.
+  Baca dan tulis Sheets per batch (`getValues`/`setValues`), jangan per sel. Cache hasil baca (CacheService) bila perlu.
+
+## Struktur Google Sheets (satu file)
+
+**Tab konfigurasi (tetap):**
+
+| Tab | Kolom |
+|---|---|
+| `Config Proyek` | Project ID, Nama Proyek, Folder ID Drive induk, Tanggal Mulai |
+| `Akses Klien` | Project ID, Kode Akses, Status (aktif/nonaktif), Terakhir Diganti |
+| `Admin PIN` | PIN, Nama, Role (Owner/Pengawas), Status |
+
+**Satu tab per Project ID** (dibuat otomatis oleh script saat proyek baru). Nama tab = Project ID yang sudah di-sanitasi,
+unik, valid sebagai nama tab. Isi tab proyek:
+
+- **Master item (flat):** `Kode | Kategori | Lokasi | Nama Item | Volume | Satuan | Bobot`
+  - Kategori utama (mis. Pekerjaan Beton) → Lokasi/bagian bangunan (mis. Lantai Dasar; boleh kosong) → Item (mis. Beton Kolom K1).
+  - Item bisa berubah selama proyek jalan → edit lewat dashboard admin (Setup RAB / Edit detail), bukan langsung di Sheets.
+- **Log progres mingguan (format long):**
+  `Timestamp | Project ID | Minggu ke- | Kode Item | Volume realisasi | Progress % | Periode mulai | Periode akhir | Folder ID foto minggu itu | Diisi oleh`
+  - Satu baris per item per minggu. Baris dibuat otomatis saat admin submit.
+  - Letak log (per-proyek vs satu tab bersama) **belum diputuskan**, lihat "Keputusan terbuka".
+
+**Rumus:**
+- bobot tertimbang = bobot item × progress %
+- progres kategori = SUM bobot tertimbang item dalam kategori (SUMIF / QUERY group by Kategori)
+- kumulatif = kumulatif lalu + periode ini
+- deviasi = realisasi − rencana
+
+## Model akses: tiga lapis independen
+
+1. **Password global** — gerbang awal dashboard admin; disimpan di Vercel env var.
+2. **PIN admin personal** — identitas (kolom "Diisi oleh" untuk audit), bisa dicabut per orang. Ganti token statis.
+   Role Owner vs Pengawas; hanya Owner mengelola PIN (masih keputusan terbuka).
+3. **Kode akses klien per proyek** — acak, mis. `C40-MIRAL6-X7K2`. Bisa di-regenerate, bisa aktif/nonaktif.
+   Divalidasi di server. Link `?kode=` berperan seperti password, jadi jangan samakan format link dengan kode
+   mentah di URL publik tanpa sadar. Link mengacu ke Project ID, kode ada terpisah.
+
+Aturan keras:
+- Setiap endpoint admin: cek PIN di server + catat siapa yang menulis.
+- Endpoint klien: cek kode (aktif) → kembalikan **hanya** data proyek milik kode itu.
+- Jangan hardcode Folder ID, Sheet ID, atau rahasia di HTML. Folder ID hanya hidup di Sheets.
+- Jangan commit rahasia asli ke repo ini (repo public).
+
+## Google Drive (foto)
+
+- Klien membuat folder induk di Drive mereka dan share **Editor** ke akun Lenno. ID-nya masuk `Config Proyek`.
+- Script `createFolder()` membuat folder proyek, lalu subfolder per minggu. ID subfolder disimpan di baris log minggu itu.
+- Set sharing folder: `ANYONE_WITH_LINK` + `VIEW`.
+- Foto ditarik script: `getFiles()` difilter `mimeType` diawali `image/`, lalu bentuk URL thumbnail. Dashboard cuma menampilkan.
+- Satu proyek punya banyak folder (satu per minggu). Admin buka folder minggu itu lewat tombol di tab Input mingguan.
+  Tidak ada upload langsung dari dashboard; admin unggah ke Drive.
+- Catatan kuota: file hasil unggahan manual dihitung ke kuota pengunggah.
+
+## Konsep minggu
+
+- "Minggu ke-N" = nomor urut laporan, bukan minggu kalender. Tanggal periode disarankan otomatis (7 hari) tapi **bisa diedit**
+  (PDF asli kadang 8 hari). Tandai "saran otomatis" vs "manual".
+- Klien boleh pilih minggu sebelumnya (riwayat) di dashboard.
+- Admin bisa isi/koreksi minggu apa pun.
+
+## Keputusan terbuka (tanya Lenno sebelum mengunci)
+
+1. **Rencana per minggu:** PDF hanya punya rencana bulanan per kategori. Interpolasi ke mingguan, atau rencana per item?
+   Prototype pakai interpolasi dummy.
+2. **Letak log progres:** per-proyek (satu tab tiap proyek) atau satu tab bersama dengan kolom Project ID?
+3. **Role admin:** apakah Owner vs Pengawas dengan hak berbeda, siapa yang boleh kelola PIN?
+4. **QR code:** sekarang pakai `api.qrserver.com` (butuh internet, URL keluar dari browser). Usul: ganti `qrcode.js` lokal.
+5. **Notifikasi email ke klien** tiap minggu selesai diisi (MailApp dari Apps Script): mau dinyalakan?
+
+## Urutan kerja yang disarankan
+
+1. Rancang kontrak API (action, parameter, bentuk JSON) dan tulis di `docs/api.md`.
+2. Script setup: buat tab konfigurasi, fungsi buat proyek baru (tab + folder Drive + kode akses).
+3. Auth: cek password/PIN/kode di server, audit "Diisi oleh".
+4. Endpoint baca: daftar proyek, detail proyek, riwayat minggu, foto minggu.
+5. Endpoint tulis: setup RAB, edit item, submit minggu, regenerate/toggle kode.
+6. Sambungkan HTML (ganti data dummy dengan `fetch`). Tambah loading state; Apps Script lambat saat cold start.
+7. Uji dengan data C40 dummy sampai angka cocok dengan PDF (rekap kategori & kurva S).
+8. Deploy Vercel, isi env var, pasang password gerbang.
+
+## Desain
+
+- Palet merah Alisons: `--accent #B23A2E`, `--accent-dark #7A231C`, `--paper #F6F4EF`, `--ink #2A2420`.
+- Perubahan visual: konfirmasi ke Lenno dulu. Desktop dan mobile harus sama-sama nyaman.
+- Kurva S pakai Chart.js; di klien, minggu terpilih disorot.
+
+## Gaya kerja
+
+- Jawab dalam bahasa Indonesia informal, singkat, langsung ke inti.
+- Jangan klaim sudah jadi sebelum diuji; sebut jelas bagian yang masih dummy.
+- Data di repo ini dummy/anonim. Jangan masukkan data klien asli, nama orang asli, atau info komersial ke repo public.

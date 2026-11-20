@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Progress Proyek — Dashboard Klien</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --paper:#F6F4EF; --surface:#FFFFFF; --ink:#2A2420; --ink-soft:#655C54; --ink-faint:#A29A90;
+    --line:#E4DED4; --line-strong:#D0C6B8;
+    --accent:#B23A2E; --accent-dark:#7A231C; --accent-fill:#F6E2DF;
+    --green:#3E7D53; --green-fill:#E1EFE3; --red:#B23A2E;
+    --mono:'IBM Plex Mono','SFMono-Regular',Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans); font-size:14px; line-height:1.5;}
+  button, input{font-family:var(--sans);}
+
+  /* Gate screen */
+  #gateScreen{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;}
+  .gate-box{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:36px 32px; max-width:400px; width:100%; text-align:center;}
+  .brand-mark{width:44px; height:44px; border-radius:10px; margin:0 auto 16px;
+    background:linear-gradient(135deg,#C1443A 0%,var(--accent) 45%,var(--accent-dark) 100%);
+    display:flex; align-items:center; justify-content:center; color:#fff; font-family:var(--mono); font-weight:700; font-size:15px;}
+  .gate-box h1{font-size:16px; margin:0 0 4px;}
+  .gate-box .sub{font-size:12px; color:var(--ink-faint); margin-bottom:22px;}
+  .gate-box input{width:100%; font-family:var(--mono); font-size:15px; text-align:center; letter-spacing:.06em;
+    padding:12px 14px; border:1px solid var(--line-strong); border-radius:8px; margin-bottom:12px; text-transform:uppercase;}
+  .gate-box button{width:100%; background:var(--accent); color:#fff; border:none; border-radius:8px; padding:12px; font-size:14px; font-weight:600; cursor:pointer;}
+  .gate-box button:hover{background:var(--accent-dark);}
+  .gate-error{color:var(--red); font-size:12px; margin-top:10px; display:none;}
+
+  /* Dashboard */
+  #dashScreen{display:none; max-width:920px; margin:0 auto; padding:28px 20px 60px;}
+  .dash-header{display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:24px; flex-wrap:wrap;}
+  .dash-header .proyek-nama{font-size:19px; font-weight:700; margin:0 0 3px;}
+  .dash-header .proyek-meta{font-size:12px; color:var(--ink-faint); font-family:var(--mono);}
+  .dash-header .brand-mark{width:36px; height:36px; margin:0; font-size:12px;}
+  .dash-header-left{display:flex; align-items:center; gap:12px;}
+
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin-bottom:22px;}
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px 18px;}
+  .card .label{font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; margin-bottom:6px;}
+  .card .value{font-size:24px; font-weight:700; font-family:var(--mono);}
+  .card .value.pos{color:var(--green);}
+  .card .value.neg{color:var(--red);}
+  .card .hint{font-size:11px; color:var(--ink-faint); margin-top:4px;}
+
+  .panel{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:18px 20px; margin-bottom:18px;}
+  .panel h3{font-size:13px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); margin:0 0 14px; font-weight:600;}
+  .chart-legend{display:flex; gap:16px; font-size:11px; color:var(--ink-soft); margin-bottom:10px;}
+  .chart-legend span{display:flex; align-items:center; gap:5px;}
+  .dot{width:9px; height:9px; border-radius:2px; display:inline-block;}
+
+  table.rekap{width:100%; border-collapse:collapse; font-size:13px;}
+  table.rekap th{text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--line-strong);}
+  table.rekap th:not(:first-child), table.rekap td:not(:first-child){text-align:right;}
+  table.rekap td{padding:9px 10px; border-bottom:1px solid var(--line); font-family:var(--mono); font-size:12.5px;}
+  table.rekap td:first-child{font-family:var(--sans); font-size:13px;}
+  table.rekap tfoot td{font-weight:700; border-top:2px solid var(--line-strong); border-bottom:none;}
+
+  .kat-row{
+    display:grid; grid-template-columns:1fr 70px 90px 90px 90px 24px; gap:8px; align-items:center;
+    padding:11px 10px; border-bottom:1px solid var(--line); font-size:13px; cursor:default;
+  }
+  .kat-row.clickable{cursor:pointer;}
+  .kat-row.clickable:hover{background:var(--paper);}
+  .kat-row div:not(:first-child){text-align:right; font-family:var(--mono); font-size:12.5px;}
+  .kat-row .chev{color:var(--ink-faint); font-size:11px; transition:transform .15s ease; text-align:center;}
+  .kat-row.open .chev{transform:rotate(90deg);}
+  .kat-head-row{display:grid; grid-template-columns:1fr 70px 90px 90px 90px 24px; gap:8px; padding:6px 10px;
+    font-size:10px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); border-bottom:1px solid var(--line-strong);}
+  .kat-head-row span:not(:first-child){text-align:right;}
+  .kat-items{display:none; background:var(--paper); border-bottom:1px solid var(--line);}
+  .kat-items.open{display:block;}
+  .kat-item-row{display:grid; grid-template-columns:1fr 90px 70px; gap:8px; padding:8px 10px 8px 26px; font-size:12px; border-top:1px solid var(--line);}
+  .kat-item-row:first-child{border-top:none;}
+  .kat-item-row div:not(:first-child){text-align:right; font-family:var(--mono); color:var(--ink-soft);}
+  .kat-item-loc{font-size:10.5px; color:var(--ink-faint); font-family:var(--mono);}
+  .kat-total-row{display:grid; grid-template-columns:1fr 70px 90px 90px 90px 24px; gap:8px; padding:11px 10px; font-weight:700; font-size:13px; border-top:2px solid var(--line-strong);}
+  .kat-total-row div:not(:first-child){text-align:right; font-family:var(--mono);}
+  .no-detail{padding:8px 10px 8px 26px; font-size:11px; color:var(--ink-faint); font-style:italic; border-top:1px solid var(--line);}
+
+  .foto-box{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px;}
+  .foto-link{display:inline-flex; align-items:center; gap:8px; background:var(--accent); color:#fff; text-decoration:none;
+    padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600;}
+  .foto-link:hover{background:var(--accent-dark);}
+  .foto-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px;}
+  .foto-grid img{width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer; display:block;}
+  .foto-more{display:flex; align-items:center; justify-content:center; aspect-ratio:4/3; border-radius:8px; border:1px dashed var(--line-strong); color:var(--ink-faint); font-size:12px; text-decoration:none;}
+
+  .aktivitas-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media (max-width:600px){.aktivitas-grid{grid-template-columns:1fr;}}
+  .aktivitas-grid ul{margin:0; padding-left:18px; font-size:13px;}
+  .aktivitas-grid li{margin-bottom:6px;}
+  .aktivitas-grid h4{font-size:12px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; margin:0 0 10px;}
+
+  .footer-note{text-align:center; font-size:11px; color:var(--ink-faint); margin-top:20px;}
+  .empty-hint{font-size:12px; color:var(--ink-faint); font-style:italic;}
+</style>
+</head>
+<body>
+
+<div id="gateScreen">
+  <div class="gate-box">
+    <div class="brand-mark">GR</div>
+    <h1>Progress Proyek</h1>
+    <div class="sub">Masukkan kode akses yang diberikan kontraktor</div>
+    <input type="text" id="kodeInput" placeholder="MIS. C40-MIRAL6-X7K2" onkeydown="if(event.key==='Enter') cekKode()">
+    <button onclick="cekKode()">Lihat progress</button>
+    <div class="gate-error" id="gateError">Kode tidak ditemukan atau sudah tidak aktif. Hubungi kontraktor untuk kode terbaru.</div>
+  </div>
+</div>
+
+<div id="dashScreen">
+  <div class="dash-header">
+    <div class="dash-header-left">
+      <div class="brand-mark">GR</div>
+      <div>
+        <div class="proyek-nama" id="dashNama">—</div>
+        <div class="proyek-meta" id="dashMeta">—</div>
+      </div>
+    </div>
+    <select id="mingguPilih" onchange="pilihMinggu(this.value)"
+      style="font-size:13px; padding:9px 14px; border:1px solid var(--line-strong); border-radius:8px; background:var(--surface);"></select>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="label">Minggu berjalan</div><div class="value" id="cMinggu">—</div></div>
+    <div class="card"><div class="label">Rencana kumulatif</div><div class="value" id="cRencana">—</div></div>
+    <div class="card"><div class="label">Realisasi kumulatif</div><div class="value" id="cRealisasi">—</div></div>
+    <div class="card">
+      <div class="label">Deviasi</div>
+      <div class="value" id="cDeviasi">—</div>
+      <div class="hint" id="cDeviasiHint"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Kurva S — Rencana vs Realisasi</h3>
+    <div class="chart-legend">
+      <span><span class="dot" style="background:#2a78d6;"></span>Rencana</span>
+      <span><span class="dot" style="background:var(--accent);"></span>Realisasi</span>
+    </div>
+    <div style="position:relative; height:260px;"><canvas id="klienChart"></canvas></div>
+  </div>
+
+  <div class="panel">
+    <h3>Rekapitulasi Progres per Kategori</h3>
+    <div class="empty-hint" style="padding-top:0; margin-top:-6px;">Klik kategori untuk lihat rincian item pekerjaan.</div>
+    <div class="kat-head-row">
+      <span>Item pekerjaan</span><span>Bobot</span><span>Lalu</span><span>Ini</span><span>Kumulatif</span><span></span>
+    </div>
+    <div id="rekapBody"></div>
+    <div class="kat-total-row">
+      <div>Jumlah bobot pekerjaan</div><div id="totBobot">—</div><div id="totLalu">—</div><div id="totIni">—</div><div id="totKum">—</div><div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Dokumentasi Foto</h3>
+    <div class="foto-box">
+      <div>
+        <div style="font-size:13px; margin-bottom:3px;">Foto progres minggu ke-<span id="fotoMinggu">—</span></div>
+        <div class="empty-hint" style="padding:0;">Diambil langsung dari lapangan oleh pengawas.</div>
+      </div>
+    </div>
+    <div class="foto-grid" id="fotoGrid"></div>
+  </div>
+
+  <div class="panel">
+    <div class="aktivitas-grid">
+      <div>
+        <h4>Aktivitas minggu ini</h4>
+        <ul id="aktivitasList"></ul>
+      </div>
+      <div>
+        <h4>Rencana minggu depan</h4>
+        <ul id="rencanaList"></ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">Data diperbarui setiap minggu oleh kontraktor pelaksana. Dashboard ini bersifat baca saja.</div>
+</div>
+
+<script>
+const DATA = {
+  "C40-MIRAL6-X7K2": {
+    nama: "Miral 6 Residence — Blok C40",
+    mingguTerbaru: 3,
+    riwayat: {
+      1: {
+        periode: "12 – 18 Agustus 2026", rencanaKumulatif: 1.23, realisasiKumulatif: 3.10,
+        fotoDriveLink: "https://drive.google.com/drive/folders/contoh-folder-miral6-minggu1",
+        fotoThumbnails: ["https://picsum.photos/seed/miral6-w1-1/300/225","https://picsum.photos/seed/miral6-w1-2/300/225"],
+        aktivitasMingguIni: ["Pengukuran lahan & pemasangan bouplank", "Mobilisasi gudang & bedeng"],
+        rencanaMingguDepan: ["Galian tanah pondasi", "Pasang pondasi batu kali"],
+        kategori: [
+          { nama:"Pekerjaan pendahuluan", bobot:1.55, lalu:0.00, ini:0.35, items:[] },
+          { nama:"Pekerjaan mob demob", bobot:0.92, lalu:0.00, ini:0.92, items:[] },
+        ]
+      },
+      2: {
+        periode: "19 – 25 Agustus 2026", rencanaKumulatif: 2.83, realisasiKumulatif: 5.50,
+        fotoDriveLink: "https://drive.google.com/drive/folders/contoh-folder-miral6-minggu2",
+        fotoThumbnails: ["https://picsum.photos/seed/miral6-w2-1/300/225","https://picsum.photos/seed/miral6-w2-2/300/225","https://picsum.photos/seed/miral6-w2-3/300/225"],
+        aktivitasMingguIni: ["Galian tanah pondasi", "Mulai pasang pondasi batu kali"],
+        rencanaMingguDepan: ["Fabrikasi pembesian sloof & kolom", "Cor beton sloof"],
+        kategori: [
+          { nama:"Pekerjaan pendahuluan", bobot:1.55, lalu:0.35, ini:0.00, items:[] },
+          { nama:"Pekerjaan mob demob", bobot:0.92, lalu:0.92, ini:0.00, items:[] },
+          { nama:"Pekerjaan & urugan", bobot:0.72, lalu:0.00, ini:0.49, items:[] },
+          { nama:"Pekerjaan pondasi beton", bobot:4.72, lalu:0.00, ini:2.39, items:[] },
+        ]
+      },
+      3: {
+        periode: "26 Agustus – 2 September 2026", rencanaKumulatif: 4.76, realisasiKumulatif: 20.35,
+        fotoDriveLink: "https://drive.google.com/drive/folders/contoh-folder-miral6-minggu3",
+        fotoThumbnails: [
+          "https://picsum.photos/seed/miral6-1/300/225","https://picsum.photos/seed/miral6-2/300/225",
+          "https://picsum.photos/seed/miral6-3/300/225","https://picsum.photos/seed/miral6-4/300/225","https://picsum.photos/seed/miral6-5/300/225",
+        ],
+        aktivitasMingguIni: ["Pasang pondasi batu kali", "Fabrikasi pembesian sloof & kolom", "Instalasi pipa pembuangan & bak kontrol"],
+        rencanaMingguDepan: ["Pekerjaan sumur bor", "Pasang dinding bata ringan & cor beton kolom", "Perancah balok beton"],
+        kategori: [
+          { nama:"Pekerjaan pendahuluan", bobot:1.55, lalu:0.35, ini:0.00, items:[
+            { nama:"Air kerja — pembuatan sumur bor", lokasi:"", volume:1, satuan:"Ls", bobotItem:1.20, progres:0 },
+            { nama:"Pembersihan ringan area kerja", lokasi:"", volume:69, satuan:"m2", bobotItem:0.14, progres:100 },
+          ]},
+          { nama:"Pekerjaan mob demob", bobot:0.92, lalu:0.92, ini:0.00, items:[] },
+          { nama:"Pekerjaan & urugan", bobot:0.72, lalu:0.49, ini:0.24, items:[] },
+          { nama:"Pekerjaan pondasi beton", bobot:4.72, lalu:2.39, ini:2.22, items:[] },
+          { nama:"Pekerjaan beton sloof", bobot:3.08, lalu:0.00, ini:2.80, items:[] },
+          { nama:"Pekerjaan beton kolom", bobot:5.79, lalu:0.77, ini:1.08, items:[
+            { nama:"Beton kolom K1 20/40", lokasi:"Lantai dasar", volume:0.56, satuan:"m3", bobotItem:0.63, progres:49 },
+            { nama:"Beton kolom K2 15/30", lokasi:"Lantai dasar", volume:1.73, satuan:"m3", bobotItem:1.93, progres:55 },
+            { nama:"Beton kolom K3 15/25", lokasi:"Lantai 2", volume:0.52, satuan:"m3", bobotItem:0.57, progres:0 },
+            { nama:"Beton kolom K4 15/20", lokasi:"Lantai 2", volume:0.90, satuan:"m3", bobotItem:0.99, progres:0 },
+          ]},
+          { nama:"Pekerjaan beton non struktur", bobot:2.06, lalu:0.59, ini:0.64, items:[] },
+          { nama:"Pekerjaan dinding", bobot:19.37, lalu:0.00, ini:1.51, items:[
+            { nama:"Pasangan dinding bata ringan", lokasi:"Lantai 1", volume:123.56, satuan:"m2", bobotItem:3.02, progres:50 },
+            { nama:"Plesteran dinding", lokasi:"Lantai 1", volume:209.23, satuan:"m2", bobotItem:3.19, progres:0 },
+            { nama:"Pasangan dinding bata ringan", lokasi:"Lantai 2", volume:152.37, satuan:"m2", bobotItem:3.72, progres:0 },
+          ]},
+          { nama:"Pekerjaan perpipaan & sanitair", bobot:7.87, lalu:0.00, ini:1.04, items:[] },
+          { nama:"Pekerjaan penutup lantai & fasade", bobot:12.42, lalu:0.00, ini:0.00, items:[] },
+          { nama:"Pekerjaan atap", bobot:3.75, lalu:0.00, ini:0.00, items:[] },
+          { nama:"Pekerjaan plafond", bobot:2.82, lalu:0.00, ini:0.00, items:[] },
+          { nama:"Pekerjaan pintu jendela kaca & aksesories", bobot:8.81, lalu:0.00, ini:0.00, items:[] },
+          { nama:"Pekerjaan pengecatan", bobot:5.39, lalu:0.00, ini:0.00, items:[] },
+          { nama:"Pekerjaan instalasi elektrikal", bobot:3.38, lalu:0.00, ini:0.00, items:[] },
+          { nama:"Pekerjaan +/- item lain-lain", bobot:1.51, lalu:0.00, ini:0.00, items:[] },
+        ]
+      }
+    }
+  },
+  "D12-GWISATA-P9M4": {
+    nama: "Grand Wisata — Blok D12",
+    mingguTerbaru: 1,
+    riwayat: {
+      1: {
+        periode: "8 – 14 September 2026", rencanaKumulatif: 1.10, realisasiKumulatif: 0.95,
+        fotoDriveLink: "https://drive.google.com/drive/folders/contoh-folder-gwisata-minggu1",
+        fotoThumbnails: ["https://picsum.photos/seed/gwisata-1/300/225","https://picsum.photos/seed/gwisata-2/300/225"],
+        aktivitasMingguIni: ["Pengukuran lahan & bouplank", "Mulai galian pondasi"],
+        rencanaMingguDepan: ["Pasang pondasi batu kali", "Cor beton sloof"],
+        kategori: [
+          { nama:"Pekerjaan pendahuluan", bobot:1.40, lalu:0.00, ini:0.30, items:[] },
+          { nama:"Pekerjaan pondasi beton", bobot:4.10, lalu:0.00, ini:0.65, items:[] },
+        ]
+      }
+    }
+  }
+};
+// Nonaktif secara sengaja untuk demo — kode ini tidak akan menampilkan data
+const KODE_NONAKTIF = [];
+
+let chartInstance = null;
+let currentKode = null;
+let selectedMingguKlien = null;
+
+function cekKode(){
+  const input = document.getElementById('kodeInput').value.trim().toUpperCase();
+  const err = document.getElementById('gateError');
+  if(!DATA[input] || KODE_NONAKTIF.includes(input)){
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+  currentKode = input;
+  selectedMingguKlien = DATA[input].mingguTerbaru;
+  tampilkanDashboard();
+}
+
+function fmt(n){ return n.toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+function pilihMinggu(val){
+  selectedMingguKlien = parseInt(val);
+  renderMingguKlien();
+}
+
+function toggleKatRow(ki){
+  document.getElementById('katrow-'+ki).classList.toggle('open');
+  document.getElementById('katitems-'+ki).classList.toggle('open');
+}
+
+function tampilkanDashboard(){
+  const p = DATA[currentKode];
+  document.getElementById('gateScreen').style.display = 'none';
+  document.getElementById('dashScreen').style.display = 'block';
+  document.getElementById('dashNama').textContent = p.nama;
+
+  const sel = document.getElementById('mingguPilih');
+  sel.innerHTML = '';
+  for(let w=1; w<=p.mingguTerbaru; w++){
+    const opt = document.createElement('option');
+    opt.value = w;
+    opt.textContent = `Minggu ke-${w}`;
+    if(w===selectedMingguKlien) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  renderMingguKlien();
+}
+
+function renderMingguKlien(){
+  const p = DATA[currentKode];
+  const w = p.riwayat[selectedMingguKlien];
+  const isLatest = selectedMingguKlien === p.mingguTerbaru;
+
+  document.getElementById('dashMeta').textContent = `Minggu ke-${selectedMingguKlien}${isLatest?' (terbaru)':''} · periode ${w.periode}`;
+  document.getElementById('cMinggu').textContent = selectedMingguKlien;
+  document.getElementById('cRencana').textContent = fmt(w.rencanaKumulatif)+'%';
+  document.getElementById('cRealisasi').textContent = fmt(w.realisasiKumulatif)+'%';
+  const dev = w.realisasiKumulatif - w.rencanaKumulatif;
+  const devEl = document.getElementById('cDeviasi');
+  devEl.textContent = (dev>=0?'+':'')+fmt(dev)+'%';
+  devEl.className = 'value ' + (dev>=0?'pos':'neg');
+  document.getElementById('cDeviasiHint').textContent = dev>=0 ? 'Lebih cepat dari rencana' : 'Tertinggal dari rencana';
+
+  const totBobot = w.kategori.reduce((a,k)=>a+k.bobot,0);
+  const totLalu = w.kategori.reduce((a,k)=>a+k.lalu,0);
+  const totIni = w.kategori.reduce((a,k)=>a+k.ini,0);
+  document.getElementById('rekapBody').innerHTML = w.kategori.map((k, ki) => {
+    const hasItems = k.items && k.items.length > 0;
+    return `
+    <div>
+      <div class="kat-row ${hasItems?'clickable':''}" ${hasItems?`onclick="toggleKatRow(${ki})"`:''} id="katrow-${ki}">
+        <div>${k.nama}</div><div>${fmt(k.bobot)}</div><div>${fmt(k.lalu)}</div><div>${fmt(k.ini)}</div><div>${fmt(k.lalu+k.ini)}</div>
+        <div class="chev">${hasItems?'&#9656;':''}</div>
+      </div>
+      <div class="kat-items" id="katitems-${ki}">
+        ${hasItems ? k.items.map(it => `
+          <div class="kat-item-row">
+            <div>${it.nama}${it.lokasi?`<div class="kat-item-loc">${it.lokasi}</div>`:''}</div>
+            <div>${it.volume} ${it.satuan}</div>
+            <div>${it.progres}%</div>
+          </div>`).join('') : `<div class="no-detail">Rincian item belum tersedia untuk kategori ini.</div>`}
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('totBobot').textContent = fmt(totBobot);
+  document.getElementById('totLalu').textContent = fmt(totLalu);
+  document.getElementById('totIni').textContent = fmt(totIni);
+  document.getElementById('totKum').textContent = fmt(totLalu+totIni);
+
+  document.getElementById('fotoMinggu').textContent = selectedMingguKlien;
+  document.getElementById('fotoGrid').innerHTML = (w.fotoThumbnails || []).map(url =>
+    `<img src="${url}" onclick="window.open('${w.fotoDriveLink}','_blank')" alt="Foto progres">`
+  ).join('') + `<a href="${w.fotoDriveLink}" target="_blank" class="foto-more">Lihat semua di Drive →</a>`;
+
+  document.getElementById('aktivitasList').innerHTML = w.aktivitasMingguIni.map(a=>`<li>${a}</li>`).join('');
+  document.getElementById('rencanaList').innerHTML = w.rencanaMingguDepan.map(a=>`<li>${a}</li>`).join('');
+
+  const allWeeks = Object.keys(p.riwayat).map(Number).sort((a,b)=>a-b);
+  const weeks = Array.from({length:12}, (_,i)=>i);
+  const rencana = weeks.map(wk => {
+    const closest = allWeeks.filter(x=>x<=wk).pop();
+    return closest ? p.riwayat[closest].rencanaKumulatif : (wk===0?0:null);
+  });
+  const realisasi = weeks.map(wk => {
+    if(wk===0) return 0;
+    if(wk > p.mingguTerbaru) return null;
+    return p.riwayat[wk] ? p.riwayat[wk].realisasiKumulatif : null;
+  });
+  if(chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(document.getElementById('klienChart'), {
+    type:'line',
+    data:{ labels:weeks, datasets:[
+      { label:'Rencana', data:rencana, borderColor:'#2a78d6', borderWidth:2, pointRadius:0, tension:.35, spanGaps:true },
+      { label:'Realisasi', data:realisasi, borderColor:'#B23A2E', backgroundColor:'#B23A2E', borderWidth:2,
+        pointRadius:(c)=>c.dataIndex===selectedMingguKlien?7:3,
+        pointBackgroundColor:(c)=>c.dataIndex===selectedMingguKlien?'#7A231C':'#B23A2E', spanGaps:false }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(c)=>c.dataset.label+': '+c.parsed.y+'%'}} },
+      scales:{ x:{title:{display:true,text:'Minggu ke-',font:{size:10}}, grid:{display:false}},
+               y:{min:0,max:100,title:{display:true,text:'% kumulatif',font:{size:10}}} } }
+  });
+}
+
+// Auto-isi dari parameter link ?kode=...
+const urlParams = new URLSearchParams(window.location.search);
+const kodeDariUrl = urlParams.get('kode');
+if(kodeDariUrl){
+  document.getElementById('kodeInput').value = kodeDariUrl.toUpperCase();
+  cekKode();
+}
+</script>
+
+<!-- MODE DEMO (presentasi): kursor penunjuk + auto-isi kode. HAPUS dua tag ini saat disambung ke Apps Script. -->
+<script>
+(function(){
+  var gate = function(){ var e=document.getElementById('gateScreen'); return !!e && e.style.display!=='none'; };
+  var dash = function(){ var e=document.getElementById('dashScreen'); return !!e && e.style.display!=='none'; };
+  window.DEMO_GUIDE = {
+    fields: [
+      { selector:'#kodeInput', value:'C40-MIRAL6-X7K2', label:'Kode demo: <b>C40-MIRAL6-X7K2</b>' }
+    ],
+    steps: [
+      { id:'kode', kind:'type',  target:'#kodeInput', show:gate, doneWhen:function(){return !gate() || document.getElementById('kodeInput').value==='C40-MIRAL6-X7K2';},
+        text:'Klien memasukkan <b>kode akses</b> dari kontraktor. Ketik apa saja, otomatis terisi.' },
+      { id:'kodeb',kind:'click', target:'#gateScreen button', show:gate,
+        text:'Klik <b>Lihat progress</b>.' },
+      { id:'cards',kind:'info',  target:'.cards', show:dash,
+        text:'Ringkasan: minggu berjalan, rencana vs realisasi, dan <b>deviasi</b>.' },
+      { id:'week', kind:'info',  target:'#mingguPilih', show:dash,
+        text:'Klien bisa pilih minggu sebelumnya untuk melihat riwayat.' },
+      { id:'curve',kind:'info',  target:'#klienChart', show:dash,
+        text:'<b>Kurva S</b>. Minggu yang dipilih disorot.' },
+      { id:'rekap',kind:'click', target:'#rekapBody .kat-row.clickable', show:dash,
+        text:'Klik kategori untuk melihat <b>rincian item</b> pekerjaan.' },
+      { id:'foto', kind:'info',  target:'#fotoGrid', show:dash,
+        text:'Foto lapangan minggu itu, diambil dari folder Drive.' },
+      { id:'akt',  kind:'info',  target:'#aktivitasList', show:dash,
+        text:'Aktivitas minggu ini dan rencana minggu depan.' }
+    ]
+  };
+})();
+</script>
+<script src="demo-guide.js"></script>
+</body>
+</html>
