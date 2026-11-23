@@ -108,6 +108,8 @@ Aturan keras:
 - Tab `Pengguna` di Sheets: username, nama, peran, hash password + salt, status, proyek yang boleh dibuka (atau `semua`), wajib ganti password.
 - Apps Script: cek hash, buat token bersesi berumur terbatas, tiap request cek token + peran + proyek. Kunci akun sementara setelah 5x salah.
   Pesan galat sama untuk username salah dan password salah. Hash di Apps Script memakai `Utilities.computeDigest` SHA-256 + salt acak per akun.
+- **Ganti password sendiri**: tiap akun bisa mengganti passwordnya kapan saja (tombol "Ganti password": password lama + baru 2x, min. 8 karakter, tidak boleh sama
+  dengan yang lama, kunci 1 menit setelah 5x salah password lama). Dicatat di riwayat sebagai "Ganti password" tanpa isi password. Reset oleh Owner tetap ada untuk yang lupa.
 - Dikelola Owner di tab **Pengguna & akses** pada halaman daftar proyek (bukan di dalam workspace satu proyek): buat akun (password sementara
   wajib diganti saat login pertama), edit peran, centang proyek, reset password, nonaktifkan.
 - **Akses per proyek**: Owner dan akun bertanda "semua proyek" melihat semuanya; akun terbatas (mis. vendor luar) hanya proyek yang dicentang.

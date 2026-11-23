@@ -92,6 +92,13 @@
   .landing-tabs{display:flex; gap:4px; margin:-14px 0 24px; border-bottom:1px solid var(--line);}
   .landing-tabs button{background:none; border:none; border-bottom:2px solid transparent; padding:9px 14px; font-size:13px; color:var(--ink-soft); cursor:pointer; margin-bottom:-1px;}
   .landing-tabs button.active{color:var(--accent-dark); border-bottom-color:var(--accent); font-weight:600;}
+  .modal-back{position:fixed; inset:0; background:rgba(42,36,32,.45); display:none; align-items:center; justify-content:center; padding:20px; z-index:50;}
+  .modal-box{background:var(--surface); border-radius:14px; padding:28px 28px 22px; width:100%; max-width:380px;}
+  .modal-box h2{font-size:16px; margin:0 0 4px;}
+  .modal-box .sub{font-size:12px; color:var(--ink-faint); margin-bottom:16px;}
+  .modal-box input{width:100%; font-size:14px; padding:10px 12px; border:1px solid var(--line-strong); border-radius:8px; margin-bottom:10px; background:var(--paper);}
+  .modal-actions{display:flex; gap:8px; justify-content:flex-end; margin-top:6px;}
+  .linkbtn{background:none; border:none; color:var(--ink-faint); font-size:11px; cursor:pointer; text-decoration:underline; padding:0;}
   .landing-subtabs{display:flex; gap:6px; margin-bottom:16px;}
   .landing-subtabs button{background:var(--surface); border:1px solid var(--line-strong); border-radius:999px; padding:6px 14px; font-size:12px; color:var(--ink-soft); cursor:pointer;}
   .landing-subtabs button.active{background:var(--accent-fill); border-color:#E3B6AC; color:var(--accent-dark); font-weight:600;}
@@ -304,7 +311,7 @@
 <div id="landingScreen" style="display:none;">
   <div class="landing-brand">
     <div class="brand-mark">GR</div>
-    <div><h1>Progress Konstruksi</h1><div class="sub">Login sebagai: <span id="loggedAsName">—</span> · <button class="ghost" style="padding:2px 8px; font-size:11px;" onclick="logoutAdmin()">Keluar</button></div></div>
+    <div><h1>Progress Konstruksi</h1><div class="sub">Login sebagai: <span id="loggedAsName">—</span> · <button class="ghost" id="btnGantiPw" style="padding:2px 8px; font-size:11px;" onclick="bukaGantiPw()">Ganti password</button> <button class="ghost" style="padding:2px 8px; font-size:11px;" onclick="logoutAdmin()">Keluar</button></div></div>
   </div>
   <div class="landing-tabs">
     <button id="ltProyek" class="active" onclick="showLandingTab('proyek')">Proyek</button>
@@ -407,6 +414,7 @@
       <span>&#128100;</span><span id="sidebarLoggedAs">—</span>
       <button onclick="logoutAdmin()">Keluar</button>
     </div>
+    <div style="padding:0 18px 12px;"><button class="linkbtn" onclick="bukaGantiPw()">Ganti password</button></div>
   </aside>
 
   <div class="content-area">
@@ -577,6 +585,21 @@
       <p class="empty-hint">Kode ini yang klien masukin di dashboard read-only. Nonaktifkan kapan saja tanpa menghapus data proyek.<span class="dummy-flag">data dummy</span></p>
     </section>
 
+  </div>
+</div>
+
+<div class="modal-back" id="pwModal" onclick="if(event.target===this) tutupGantiPw()">
+  <div class="modal-box">
+    <h2>Ganti password</h2>
+    <div class="sub">Hanya untuk akunmu sendiri. Minimal 8 karakter.</div>
+    <input type="password" id="pwLama" placeholder="Password lama" autocomplete="current-password">
+    <input type="password" id="pwBaruM" placeholder="Password baru" autocomplete="new-password">
+    <input type="password" id="pwBaruM2" placeholder="Ulangi password baru" autocomplete="new-password" onkeydown="if(event.key==='Enter') simpanGantiPw()">
+    <div class="gate-error" id="pwModalError"></div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="tutupGantiPw()">Batal</button>
+      <button class="primary" onclick="simpanGantiPw()">Simpan</button>
+    </div>
   </div>
 </div>
 
@@ -829,6 +852,42 @@ function simpanPwBaru(){
   masukSebagai(u);
 }
 
+// Ganti password sendiri, kapan saja setelah login. Di produksi: dicek dan di-hash di Apps Script, token sesi dipertahankan.
+function bukaGantiPw(){
+  if(!loggedInUser) return;
+  ['pwLama','pwBaruM','pwBaruM2'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('pwModalError').textContent = '';
+  document.getElementById('pwModal').style.display = 'flex';
+  document.getElementById('pwLama').focus();
+}
+function tutupGantiPw(){
+  document.getElementById('pwModal').style.display = 'none';
+  ['pwLama','pwBaruM','pwBaruM2'].forEach(id => document.getElementById(id).value = '');
+}
+function simpanGantiPw(){
+  const u = loggedInUser; if(!u) return;
+  const lama = document.getElementById('pwLama').value;
+  const baru = document.getElementById('pwBaruM').value, ulang = document.getElementById('pwBaruM2').value;
+  const err = document.getElementById('pwModalError');
+  const g = gagalLogin['pw:'+u.username] || (gagalLogin['pw:'+u.username] = { n:0, sampai:0 });
+  if(Date.now() < g.sampai){ err.textContent = 'Terlalu banyak percobaan salah. Coba lagi sebentar.'; return; }
+  if(lama !== u.password){
+    g.n++;
+    if(g.n >= 5){ g.n = 0; g.sampai = Date.now() + 60000; err.textContent = 'Salah 5 kali. Dikunci 1 menit.'; }
+    else err.textContent = 'Password lama salah.';
+    return;
+  }
+  g.n = 0;
+  if(baru.length < 8){ err.textContent = 'Password baru minimal 8 karakter.'; return; }
+  if(baru === lama){ err.textContent = 'Password baru tidak boleh sama dengan yang lama.'; return; }
+  if(baru !== ulang){ err.textContent = 'Kedua password baru harus sama.'; return; }
+  u.password = baru; u.mustChange = false;
+  catat('Ganti password', `${u.username} (password tidak dicatat)`);
+  err.textContent = '';
+  tutupGantiPw();
+  showToast('Password berhasil diganti. Pakai yang baru saat login berikutnya.');
+}
+
 function masukSebagai(u){
   loggedInUser = u;
   loggedInAdmin = `${u.nama} — ${roleLabel(u.role)}`;
@@ -847,6 +906,7 @@ function logoutAdmin(){
   loggedInUser = null;
   pendingUser = null;
   document.body.classList.remove('role-produksi');
+  tutupGantiPw();
   // Buang semua data sensitif dari DOM, jangan cuma disembunyikan, supaya tidak bocor ke akun berikutnya.
   ['finSummary','penyesuaianList','terminList','nominalCards','nominalSelisih','editList','rabPreview',
    'usersTable','usersNotice','uProyekList','proyekList','landingStats','attentionBox','auditTable'].forEach(id => {
@@ -1668,6 +1728,19 @@ function showToast(msg){
       cekLogin();
     });
   })();
+  // Di jendela Ganti password, tampilkan password lama akun demo (supaya penguji tidak buntu). Dibuat oleh blok demo ini,
+  // jadi ikut terhapus saat dipasang ke produksi dan tidak pernah membuka password di versi sungguhan.
+  (function(){
+    var modal = document.getElementById('pwModal'); if(!modal || typeof bukaGantiPw !== 'function') return;
+    var hint = document.createElement('div');
+    hint.className = 'dg-chip';
+    modal.querySelector('.sub').insertAdjacentElement('afterend', hint);
+    var asli = window.bukaGantiPw;
+    window.bukaGantiPw = function(){
+      asli();
+      hint.innerHTML = '🔑 Password lama akun demo ini: <b>' + (loggedInUser ? loggedInUser.password : '') + '</b>';
+    };
+  })();
   window.DEMO_GUIDE = {
     fields: [
       { selector:'#loginUser', value:pickUser, label:'Akun demo (peran berbeda, tampilan berbeda)',
@@ -1682,6 +1755,8 @@ function showToast(msg){
       { id:'logb', kind:'click', target:'#loginBtn', show:loginBox,
         text:'Klik <b>Masuk</b>. Peran akun menentukan tab dan harga yang terlihat.' },
 
+      { id:'gpw',  kind:'click', target:'#btnGantiPw', show:function(){return shown('landingScreen');},
+        text:'<b>Ganti password</b>: tiap orang bisa mengganti passwordnya sendiri kapan saja.' },
       { id:'ltab', kind:'info',  target:'#ltUsers', show:function(){return shown('landingScreen');},
         text:'Tab <b>Pengguna &amp; akses</b> (khusus Owner): atur siapa boleh masuk dan proyek apa saja yang boleh dibuka.' },
       { id:'utbl', kind:'info',  target:'#usersTable', show:function(){return shown('landingScreen');},
@@ -1750,6 +1825,6 @@ function showToast(msg){
   };
 })();
 </script>
-<script src="demo-guide.js?v=11"></script>
+<script src="demo-guide.js?v=12"></script>
 </body>
 </html>
