@@ -426,6 +426,7 @@
           <div class="chart-legend">
             <span><span class="dot" style="background:#2a78d6;"></span>Rencana</span>
             <span><span class="dot" style="background:var(--accent);"></span>Realisasi</span>
+            <span><span class="dot" style="background:#fff; border:2px solid var(--accent); width:5px; height:5px;"></span>Draft (belum disubmit)</span>
           </div>
           <div style="position:relative; height:260px;"><canvas id="sCurveChart"></canvas></div>
         </div>
@@ -471,6 +472,7 @@
           <span class="dummy-flag" id="periodeSaran" style="display:none;">saran otomatis, bisa diubah</span>
         </div>
       </div>
+      <p class="empty-hint" style="padding:0 0 10px;">Isi <b>progress kumulatif</b> tiap item (0 sampai 100%). Ringkasan, nominal, margin, dan kurva S langsung ikut berubah sebagai <b>draft</b>; <b>Submit</b> mengunci minggu ini dan menaikkan minggu berjalan.</p>
       <div class="input-grid">
         <div class="kat-nav" id="katNav"></div>
         <div class="item-panel">
@@ -478,7 +480,7 @@
             <div class="kname" id="itemPanelTitle">—</div>
             <div class="bobot" id="itemPanelBobot">—</div>
           </div>
-          <div class="colhead"><span>Item</span><span>Vol. realisasi</span><span>Progress (%)</span><span>Bobot tertimbang</span></div>
+          <div class="colhead"><span>Item</span><span>Vol. realisasi</span><span>Progress kum. (%)</span><span>Bobot tertimbang</span></div>
           <div id="itemPanelList"></div>
         </div>
       </div>
@@ -669,6 +671,58 @@ let sCurveChartInstance = null;
 let loggedInAdmin = null;
 let loggedInRole = null;   // 'owner' | 'produksi'
 const isOwner = () => loggedInRole === 'owner';
+
+// ---------- Model hidup ----------
+// Semua tab membaca data yang sama. Progress item -> realisasi proyek; harga & volume item -> nilai kontrak,
+// anggaran produksi, margin; Submit -> minggu naik + titik baru di kurva S. Semuanya hanya di memori browser (hilang saat refresh).
+// Bagian RAB yang tidak diitemisasi di demo ini ditampung di *Dasar (realisasiDasar, kontrakNonItem, anggaranNonItem).
+const SEED_PROGRESS = {
+  c40: { 'Pembersihan ringan area kerja':100, 'Beton kolom K1 20/40':49, 'Beton kolom K2 15/30':55, 'Pasangan dinding bata ringan|Lantai 1':50 },
+  d12: { 'Pengukuran lahan & bouplank':100, 'Pondasi batu kali':31.7 }
+};
+const SEED_RENCANA = {   // rencana kumulatif per minggu 0..12 (kurva S dummy)
+  c40: [0,1.23,2.83,4.76,7.0,9.8,13.2,17.5,22.6,28.5,35,42,49],
+  d12: [0,1.10,2.5,4.3,6.4,8.9,11.8,15.2,19,23.5,28.5,34,40]
+};
+const SEED_RIWAYAT = { c40:{1:1.27,2:4.15,3:13.68}, d12:{1:0.95} };   // realisasi kumulatif per minggu yang sudah disubmit
+
+const semuaItem = p => p.kategori.flatMap(k => k.items);
+function hitungRealisasi(p){
+  const w = semuaItem(p).reduce((s,it) => s + it.bobotItem * (it.progress||0) / 100, 0);
+  p.realisasiKumulatif = Math.min(100, (p.realisasiDasar||0) + w);
+}
+function syncFinansial(p){
+  const it = semuaItem(p);
+  p.kontrakAwal = (p.kontrakNonItem||0) + it.reduce((s,x) => s + x.volRencana*(x.hargaJual||0), 0);
+  p.anggaranProduksi = (p.anggaranNonItem||0) + it.reduce((s,x) => s + x.volRencana*(x.hargaProd||0), 0);
+}
+const rencanaDi = (p, w) => p.rencanaPlan[Math.min(Math.max(w,0),12)] || 0;
+function initProyekLive(key){
+  const p = DATA[key], sp = SEED_PROGRESS[key] || {};
+  const headline = p.realisasiKumulatif;
+  semuaItem(p).forEach(it => {
+    const v = sp[it.nama+'|'+it.lokasi] ?? sp[it.nama] ?? 0;
+    it.progress = v; it.volRealisasi = +(v/100*it.volRencana).toFixed(2);
+  });
+  const w = semuaItem(p).reduce((s,it) => s + it.bobotItem*it.progress/100, 0);
+  p.realisasiDasar = Math.max(0, headline - w);
+  p.kontrakNonItem = p.kontrakAwal - semuaItem(p).reduce((s,x) => s + x.volRencana*(x.hargaJual||0), 0);
+  p.anggaranNonItem = p.anggaranProduksi - semuaItem(p).reduce((s,x) => s + x.volRencana*(x.hargaProd||0), 0);
+  p.rencanaPlan = (SEED_RENCANA[key] || Array(13).fill(0)).slice();
+  p.riwayatReal = Object.assign({}, SEED_RIWAYAT[key] || {});
+  hitungRealisasi(p); syncFinansial(p); p.rencanaKumulatif = rencanaDi(p, p.minggu);
+}
+Object.keys(DATA).forEach(initProyekLive);
+
+// Dipanggil setiap data proyek berubah (progress, harga, volume, bobot, item): hitung ulang lalu segarkan tampilan lain.
+function onDataChanged(){
+  if(!current) return;
+  const p = DATA[current];
+  hitungRealisasi(p); syncFinansial(p);
+  p.rencanaKumulatif = rencanaDi(p, p.minggu);
+  renderRingkasan(); renderKeuangan();
+  if(document.getElementById('view-ringkasan').classList.contains('active')) renderChart();
+}
 
 // ---------- Pengguna & login (DUMMY) ----------
 // Di produksi semua ini ada di Apps Script: password disimpan sebagai hash + salt di Sheets, login menghasilkan
@@ -1100,6 +1154,7 @@ function buatProyekBaru(){
   if(!nama){ alert('Isi nama proyek dulu'); return; }
   const key = 'proyek_' + Date.now();
   DATA[key] = { nama, minggu:0, rencanaKumulatif:0, realisasiKumulatif:0, mulaiTanggal: tanggal,
+    realisasiDasar:0, kontrakNonItem:0, anggaranNonItem:0, rencanaPlan:Array(13).fill(0), riwayatReal:{},
     akses:{ kode: generateKodeString(nama), aktif:true },
     kontrakAwal:0, anggaranProduksi:0, penyesuaian:[], termin:[], selesai:false,
     kategori:[{ kode:"K01", nama:"Pekerjaan pendahuluan", bobot:0, items:[] }] };
@@ -1283,14 +1338,20 @@ function renderChart(){
   const p = DATA[current];
   const canvas = document.getElementById('sCurveChart');
   if(!canvas) return;
-  const weeks = Array.from({length:12}, (_,i)=>i);
-  const rencana = weeks.map(w => Math.min(100, +(p.rencanaKumulatif * (w/Math.max(p.minggu,1)) * 1.4).toFixed(2)));
-  const realisasi = weeks.map(w => w<=p.minggu ? +(p.realisasiKumulatif * (w/Math.max(p.minggu,1))).toFixed(2) : null);
+  const weeks = Array.from({length:13}, (_,i)=>i);
+  const rencana = weeks.map(w => p.rencanaPlan[w]);
+  const realisasi = weeks.map(w => w===0 ? 0 : (w<=p.minggu && p.riwayatReal[w]!=null ? p.riwayatReal[w] : null));
+  // Draft: progress yang sedang diisi tapi belum disubmit (titik putus-putus di minggu berikutnya)
+  const lastSubmitted = p.minggu===0 ? 0 : (p.riwayatReal[p.minggu] ?? 0);
+  const live = +p.realisasiKumulatif.toFixed(2);
+  const showDraft = p.minggu < 12 && Math.abs(live - lastSubmitted) > 0.005;
+  const draft = weeks.map(w => showDraft ? (w===p.minggu ? lastSubmitted : (w===p.minggu+1 ? live : null)) : null);
   if(sCurveChartInstance) sCurveChartInstance.destroy();
   sCurveChartInstance = new Chart(canvas, {
     type:'line',
     data:{ labels:weeks, datasets:[
       { label:'Rencana', data:rencana, borderColor:'#2a78d6', borderWidth:2, pointRadius:0, tension:.35 },
+      { label:'Draft (belum disubmit)', data:draft, borderColor:'rgba(178,58,46,.55)', borderDash:[5,4], borderWidth:2, pointRadius:(c)=>c.dataIndex===p.minggu+1?6:0, pointStyle:'rectRot', pointBackgroundColor:'#fff', pointBorderColor:'#B23A2E', pointBorderWidth:2, spanGaps:false },
       { label:'Realisasi', data:realisasi, borderColor:'#B23A2E', backgroundColor:'#B23A2E', borderWidth:2, pointRadius:(c)=>c.dataIndex===p.minggu?6:3, spanGaps:false }
     ]},
     options:{ responsive:true, maintainAspectRatio:false,
@@ -1326,10 +1387,11 @@ function tambahItemRAB(){
   const hargaJual = isOwner() ? (parseFloat(document.getElementById('rabHargaJual').value) || 0) : 0;
   if(!nama){ showToast('Isi nama item dulu'); return; }
   const kat = p.kategori.find(k => k.kode === kodeKategori);
-  kat.items.push({ nama, lokasi, volRencana:volume, satuan, bobotItem:bobot, hargaProd, hargaJual, progressMingguIni:0 });
+  kat.items.push({ nama, lokasi, volRencana:volume, satuan, bobotItem:bobot, hargaProd, hargaJual, progress:0, volRealisasi:0 });
   catat('Tambah item RAB', `${nama} di ${kodeKategori}, ${volume} ${satuan}`, current);
   ['rabNama','rabLokasi','rabVolume','rabSatuan','rabBobot','rabHargaProd','rabHargaJual'].forEach(id=>document.getElementById(id).value='');
   renderRabForm(); renderKatNav(); renderEdit();
+  onDataChanged();   // harga & volume item baru ikut menambah kontrak dan anggaran produksi
   showToast(`Item "${nama}" ditambahkan ke ${kodeKategori}`);
 }
 
@@ -1358,9 +1420,9 @@ function renderItemPanel(){
   document.getElementById('itemPanelList').innerHTML = k.items.map((it, ii) => `
     <div class="item-row">
       <div><div class="item-name">${it.nama}</div><div class="item-loc">${it.lokasi ? it.lokasi+' · ':''}${it.volRencana} ${it.satuan} rencana</div></div>
-      <input type="number" step="0.01" min="0" value="0" oninput="updateItem('${k.kode}',${ii},'volRealisasi',this.value)">
-      <input type="number" step="1" min="0" max="100" value="0" oninput="updateItem('${k.kode}',${ii},'progressMingguIni',this.value)">
-      <div class="item-weighted" id="weighted-${k.kode}-${ii}">0,00%</div>
+      <input type="number" step="0.01" min="0" value="${it.volRealisasi||0}" id="vr-${k.kode}-${ii}" oninput="updateItem('${k.kode}',${ii},'volRealisasi',this.value)">
+      <input type="number" step="1" min="0" max="100" value="${it.progress||0}" id="pr-${k.kode}-${ii}" oninput="updateItem('${k.kode}',${ii},'progress',this.value)">
+      <div class="item-weighted" id="weighted-${k.kode}-${ii}">${fmt(it.bobotItem*(it.progress||0)/100)}%</div>
     </div>`).join('') || '<div class="item-row"><div class="item-loc">Belum ada item di kategori ini.</div></div>';
 }
 
@@ -1368,9 +1430,21 @@ function updateItem(kodeKategori, itemIndex, field, value){
   const p = DATA[current];
   const kat = p.kategori.find(k => k.kode === kodeKategori);
   const item = kat.items[itemIndex];
-  item[field] = parseFloat(value) || 0;
-  const weighted = (item.bobotItem * (item.progressMingguIni/100));
+  let v = parseFloat(value); if(isNaN(v)) v = 0;
+  if(field === 'progress'){
+    // progress kumulatif (0-100%) -> volume realisasi ikut
+    item.progress = Math.max(0, Math.min(100, v));
+    item.volRealisasi = +(item.progress/100*item.volRencana).toFixed(2);
+    const vr = document.getElementById(`vr-${kodeKategori}-${itemIndex}`); if(vr) vr.value = item.volRealisasi;
+  } else {
+    // volume realisasi -> progress ikut (dibatasi 100%)
+    item.volRealisasi = Math.max(0, v);
+    item.progress = item.volRencana > 0 ? Math.min(100, +(item.volRealisasi/item.volRencana*100).toFixed(1)) : 0;
+    const pr = document.getElementById(`pr-${kodeKategori}-${itemIndex}`); if(pr) pr.value = item.progress;
+  }
+  const weighted = item.bobotItem * (item.progress/100);
   document.getElementById(`weighted-${kodeKategori}-${itemIndex}`).textContent = fmt(weighted)+'%';
+  onDataChanged();   // Ringkasan, nominal, Keuangan, kurva S ikut berubah (sebagai draft sampai disubmit)
 }
 
 function renderEdit(){
@@ -1406,6 +1480,7 @@ function editField(kodeKategori, itemIndex, field, value){
     catat('Ubah item RAB', `${item.nama}: ${label} ${f(lama)} → ${f(item[field])}`, current);
   }
   renderRabForm(); renderKatNav();
+  onDataChanged();   // volume, harga, dan bobot item mengubah realisasi, kontrak, anggaran, margin
   showToast('Item diperbarui');
 }
 
@@ -1417,6 +1492,7 @@ function hapusItem(kodeKategori, itemIndex){
   kat.items.splice(itemIndex, 1);
   catat('Hapus item RAB', `${nama} dari ${kodeKategori}`, current);
   renderRabForm(); renderKatNav(); renderEdit();
+  onDataChanged();
   showToast(`Item "${nama}" dihapus`);
 }
 
@@ -1475,8 +1551,8 @@ let periodeManual = false;
 function renderWeekbar(){
   const p = DATA[current];
   const startDate = p.mulaiTanggal || new Date().toISOString().slice(0,10);
-  const currentWeek = getCurrentWeekNumber(startDate);
-  if(!selectedMinggu || selectedMinggu > currentWeek + 4) selectedMinggu = currentWeek;
+  const currentWeek = p.minggu + 1;   // minggu yang sedang diisi = setelah minggu terakhir yang sudah disubmit
+  if(!selectedMinggu || selectedMinggu > currentWeek) selectedMinggu = currentWeek;
   document.getElementById('weekNumLabel').textContent = `Minggu ke-${selectedMinggu}`;
 
   const sel = document.getElementById('mingguSelect');
@@ -1515,8 +1591,17 @@ function bukaFolderFoto(){
 function submitMinggu(){
   const mulai = document.getElementById('periodeMulai').value;
   const akhir = document.getElementById('periodeAkhir').value;
-  catat('Submit laporan mingguan', `Minggu ke-${selectedMinggu}, periode ${mulai} s/d ${akhir}`, current);
-  showToast(`Minggu ke-${selectedMinggu} (${mulai} s/d ${akhir}) tersimpan — diisi oleh ${loggedInAdmin}. (Belum tersambung ke Google Sheets)`);
+  const p = DATA[current];
+  const w = selectedMinggu;
+  hitungRealisasi(p);
+  p.riwayatReal[w] = +p.realisasiKumulatif.toFixed(2);     // kunci titik kurva S minggu ini
+  const baru = w > p.minggu;
+  if(baru) p.minggu = w;                                    // minggu berjalan naik; minggu berikutnya mulai dari angka ini
+  p.rencanaKumulatif = rencanaDi(p, p.minggu);
+  catat('Submit laporan mingguan', `Minggu ke-${w}, periode ${mulai} s/d ${akhir}, realisasi ${fmt(p.realisasiKumulatif)}%`, current);
+  selectedMinggu = null; periodeManual = false;
+  renderWeekbar(); onDataChanged(); renderLandingStats();
+  showToast(`Minggu ke-${w} (${mulai} s/d ${akhir}) disubmit, realisasi ${fmt(p.realisasiKumulatif)}% — diisi oleh ${loggedInAdmin}. Hanya di memori demo, belum ke Google Sheets.`);
 }
 
 function showToast(msg){
@@ -1626,6 +1711,6 @@ function showToast(msg){
   };
 })();
 </script>
-<script src="demo-guide.js?v=7"></script>
+<script src="demo-guide.js?v=8"></script>
 </body>
 </html>

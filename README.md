@@ -33,6 +33,19 @@ Login admin: **satu gerbang, username + password pribadi** (tidak ada lagi passw
 
 Di produksi penyaringan peran harus dilakukan Apps Script, bukan di browser. Detail di CLAUDE.md.
 
+## Apa yang saling nyambung di demo
+
+Semua tab di dashboard admin membaca data yang sama, jadi utak-atik di satu tab langsung terlihat di tab lain:
+
+- **Input mingguan** (progress kumulatif atau volume realisasi, saling mengisi) → Ringkasan, nominal, selisih vs termin, kurva S (titik *draft* putus-putus), dan daftar proyek.
+- **Submit** mengunci minggu itu: minggu berjalan naik, titik kurva S jadi permanen, draft hilang, riwayat tercatat.
+- **Harga & volume item** (Setup RAB / Edit detail) → nilai kontrak, anggaran produksi, margin. Item baru ikut menambah.
+- **Keuangan** (penyesuaian, termin) → Ringkasan dan selisih.
+- Semua perubahan tercatat di **Riwayat perubahan** atas nama akun yang login.
+
+Batasnya: semuanya hanya di memori browser, **hilang saat refresh**, dan dashboard klien belum tersambung ke admin (data dummy masing-masing).
+Bagian RAB di luar item yang ditampilkan di demo ditampung sebagai angka dasar (`realisasiDasar`, `kontrakNonItem`, `anggaranNonItem`).
+
 ## Mode demo (untuk presentasi)
 
 `demo-guide.js` menambah dua hal di kedua dashboard:
