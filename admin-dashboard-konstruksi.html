@@ -1436,6 +1436,7 @@ function updateItem(kodeKategori, itemIndex, field, value){
     item.progress = Math.max(0, Math.min(100, v));
     item.volRealisasi = +(item.progress/100*item.volRencana).toFixed(2);
     const vr = document.getElementById(`vr-${kodeKategori}-${itemIndex}`); if(vr) vr.value = item.volRealisasi;
+    if(item.progress !== v){ const pr = document.getElementById(`pr-${kodeKategori}-${itemIndex}`); if(pr) pr.value = item.progress; }   // angka di luar 0-100 langsung dikoreksi di kolom
   } else {
     // volume realisasi -> progress ikut (dibatasi 100%)
     item.volRealisasi = Math.max(0, v);
@@ -1749,6 +1750,6 @@ function showToast(msg){
   };
 })();
 </script>
-<script src="demo-guide.js?v=10"></script>
+<script src="demo-guide.js?v=11"></script>
 </body>
 </html>
