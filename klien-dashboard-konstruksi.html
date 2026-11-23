@@ -138,6 +138,7 @@
 </div>
 
 <div id="dashScreen">
+  <div class="fin-box sel-ok" id="selesaiBanner" style="display:none;"></div>
   <div class="dash-header">
     <div class="dash-header-left">
       <div class="brand-mark">GR</div>
@@ -224,6 +225,7 @@ const DATA = {
   "C40-MIRAL6-X7K2": {
     nama: "Miral 6 Residence — Blok C40",
     mingguTerbaru: 3,
+    selesai: false,   // true -> banner "Proyek selesai". Dashboard tetap terbuka; dimatikan Owner lewat tombol Akses klien.
     // Dummy keuangan sisi jual. Harga produksi TIDAK PERNAH ada di data klien (di produksi: disaring Apps Script).
     kontrakAwal: 1250000000,
     // Penyesuaian: jenis tambah/kurang, wajib menunjuk kategori. Hanya nilai JUAL (nilai produksi tidak dikirim ke klien).
@@ -312,6 +314,7 @@ const DATA = {
   "D12-GWISATA-P9M4": {
     nama: "Grand Wisata — Blok D12",
     mingguTerbaru: 1,
+    selesai: false,
     kontrakAwal: 480000000,
     penyesuaian: [],
     termin: [
@@ -447,6 +450,11 @@ function tampilkanDashboard(){
   document.getElementById('gateScreen').style.display = 'none';
   document.getElementById('dashScreen').style.display = 'block';
   document.getElementById('dashNama').textContent = p.nama;
+  // ?selesai=1 hanya untuk pratinjau demo tampilan klien proyek selesai (di produksi nilainya dari server)
+  const selesai = p.selesai || new URLSearchParams(location.search).get('selesai') === '1';
+  const banner = document.getElementById('selesaiBanner');
+  banner.style.display = selesai ? '' : 'none';
+  banner.innerHTML = selesai ? '<b>Proyek selesai.</b> Data di bawah adalah catatan akhir progres, nilai pekerjaan, dan riwayat termin. Tidak ada pembaruan baru.' : '';
 
   const sel = document.getElementById('mingguPilih');
   sel.innerHTML = '';
@@ -593,6 +601,6 @@ if(kodeDariUrl){
   };
 })();
 </script>
-<script src="demo-guide.js?v=4"></script>
+<script src="demo-guide.js?v=5"></script>
 </body>
 </html>

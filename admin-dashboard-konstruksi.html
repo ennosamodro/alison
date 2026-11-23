@@ -92,6 +92,10 @@
   .landing-tabs{display:flex; gap:4px; margin:-14px 0 24px; border-bottom:1px solid var(--line);}
   .landing-tabs button{background:none; border:none; border-bottom:2px solid transparent; padding:9px 14px; font-size:13px; color:var(--ink-soft); cursor:pointer; margin-bottom:-1px;}
   .landing-tabs button.active{color:var(--accent-dark); border-bottom-color:var(--accent); font-weight:600;}
+  .landing-subtabs{display:flex; gap:6px; margin-bottom:16px;}
+  .landing-subtabs button{background:var(--surface); border:1px solid var(--line-strong); border-radius:999px; padding:6px 14px; font-size:12px; color:var(--ink-soft); cursor:pointer;}
+  .landing-subtabs button.active{background:var(--accent-fill); border-color:#E3B6AC; color:var(--accent-dark); font-weight:600;}
+  .done-pill{font-family:var(--mono); font-size:11px; font-weight:600; padding:3px 8px; border-radius:20px; background:var(--green-fill); color:#2C5C3B; white-space:nowrap;}
   .user-notice{background:#FDF6ED; border:1px solid #EAD9B4; border-radius:8px; padding:11px 14px; font-size:13px; color:#7A5B1E; margin-bottom:14px;}
   .user-notice code{font-family:var(--mono); font-size:14px; font-weight:700; background:#fff; padding:2px 8px; border-radius:5px; color:var(--ink);}
   .form-grid .pcheck, .pcheck{display:flex; align-items:center; gap:8px; font-size:13px; padding:4px 0; text-transform:none; letter-spacing:0; color:var(--ink);}
@@ -326,6 +330,7 @@
     <div class="arrow">&#8594;</div>
   </button>
 
+  <div class="landing-subtabs" id="landingSub"></div>
   <div class="landing-stats" id="landingStats"></div>
   <div id="attentionBox"></div>
 
@@ -369,6 +374,7 @@
         <div class="brand-mark">GR</div>
         <div class="t" id="proyekAktifNama">—</div>
       </div>
+      <button class="ghost owner-only" id="btnSelesai" onclick="toggleSelesai()" style="margin-top:12px; width:100%; font-size:12px;">Tandai selesai</button>
     </div>
     <nav>
       <button class="active" data-view="ringkasan" onclick="switchTab('ringkasan')">Ringkasan</button>
@@ -390,6 +396,7 @@
   </aside>
 
   <div class="content-area">
+    <div class="fin-box sel-ok" id="selesaiBanner" style="display:none; margin-top:0;"></div>
 
     <section id="view-ringkasan" class="view active">
       <h2 class="view-title">Ringkasan proyek</h2>
@@ -762,6 +769,7 @@ function logoutAdmin(){
   ['loginUser','loginPass','pwBaru','pwBaru2'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('loginError').textContent = '';
   document.getElementById('pwBaruError').textContent = '';
+  landingFilter = 'berjalan';
   document.getElementById('landingScreen').style.display = 'none';
   document.getElementById('workspaceScreen').style.display = 'none';
   document.getElementById('gantiPwBox').style.display = 'none';
@@ -890,8 +898,11 @@ function toggleAktifUser(username){
 
 function fmt(n){ return n.toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
+let landingFilter = 'berjalan';   // 'berjalan' | 'selesai'
+function setLandingFilter(f){ landingFilter = f; renderLandingList(); }
+
 function renderLandingStats(){
-  const keys = proyekBolehKeys();
+  const keys = proyekBolehKeys().filter(k => !DATA[k].selesai);   // statistik & perlu perhatian hanya untuk proyek berjalan
   const total = keys.length;
   const devs = keys.map(k => DATA[k].realisasiKumulatif - DATA[k].rencanaKumulatif);
   const butuhPerhatian = devs.filter(d => d < 0).length;
@@ -923,9 +934,19 @@ function renderLandingList(){
   renderLandingStats();
   const wrap = document.getElementById('proyekList');
   const q = (document.getElementById('searchProyek')?.value || '').toLowerCase().trim();
-  const keys = proyekBolehKeys().filter(key => DATA[key].nama.toLowerCase().includes(q) || key.toLowerCase().includes(q));
+  const boleh = proyekBolehKeys();
+  const nBerjalan = boleh.filter(k => !DATA[k].selesai).length, nSelesai = boleh.length - nBerjalan;
+  document.getElementById('landingSub').innerHTML = `
+    <button class="${landingFilter==='berjalan'?'active':''}" onclick="setLandingFilter('berjalan')">Berjalan (${nBerjalan})</button>
+    <button class="${landingFilter==='selesai'?'active':''}" onclick="setLandingFilter('selesai')">Selesai (${nSelesai})</button>`;
+  const berjalanView = landingFilter === 'berjalan';
+  document.getElementById('landingStats').style.display = berjalanView ? '' : 'none';
+  document.getElementById('attentionBox').style.display = berjalanView ? '' : 'none';
+  const keys = boleh.filter(key => !!DATA[key].selesai === !berjalanView)
+    .filter(key => DATA[key].nama.toLowerCase().includes(q) || key.toLowerCase().includes(q));
   if(!keys.length){
-    wrap.innerHTML = `<div style="grid-column:1/-1; padding:30px; text-align:center; color:var(--ink-faint); font-size:13px;">Tidak ada proyek yang cocok dengan "${q}"</div>`;
+    wrap.innerHTML = `<div style="grid-column:1/-1; padding:30px; text-align:center; color:var(--ink-faint); font-size:13px;">${
+      q ? `Tidak ada proyek yang cocok dengan "${q}"` : (berjalanView ? 'Belum ada proyek berjalan.' : 'Belum ada proyek yang diselesaikan. Proyek selesai disimpan di sini dan bisa dibuka kembali.')}</div>`;
     return;
   }
   wrap.innerHTML = keys.map(key => {
@@ -936,7 +957,8 @@ function renderLandingList(){
     return `<div class="proyek-card" onclick="masukProyek('${key}')">
       <div class="proyek-card-top">
         <div><div class="t">${p.nama}</div><div class="d">ID: ${key} · Minggu ke-${p.minggu}</div></div>
-        <div class="dev-badge ${dev>=0?'pos':'neg'}">${dev>=0?'+':''}${fmt(dev)}%</div>
+        ${p.selesai ? `<div class="done-pill">Selesai${p.selesaiTanggal?' · '+p.selesaiTanggal:''}</div>`
+                    : `<div class="dev-badge ${dev>=0?'pos':'neg'}">${dev>=0?'+':''}${fmt(dev)}%</div>`}
       </div>
       <div class="progress-bar">
         <div class="progress-fill" style="width:${fillPct}%;"></div>
@@ -961,9 +983,36 @@ function masukProyek(key){
   document.getElementById('sidebarLoggedAs').textContent = loggedInAdmin;
   switchTab('ringkasan');
   renderAll();
+  renderSelesaiUI();
+}
+
+// ---------- Proyek selesai (arsip) ----------
+function renderSelesaiUI(){
+  const p = DATA[current];
+  const btn = document.getElementById('btnSelesai');
+  btn.textContent = p.selesai ? 'Buka kembali proyek' : 'Tandai selesai';
+  const b = document.getElementById('selesaiBanner');
+  if(p.selesai){
+    b.style.display = '';
+    b.innerHTML = `<b>Proyek ini sudah selesai${p.selesaiTanggal ? ' ('+p.selesaiTanggal+')' : ''}.</b> Data tetap tersimpan dan bisa dilihat. Dashboard klien tetap terbuka dengan keterangan "Proyek selesai"; matikan lewat tab Akses klien kalau perlu.${isOwner() ? ' Owner bisa membukanya kembali lewat tombol di sidebar.' : ''}`;
+  } else { b.style.display = 'none'; b.innerHTML = ''; }
+}
+function toggleSelesai(){
+  if(!isOwner()) return;
+  const p = DATA[current];
+  if(!p.selesai){
+    if(!confirm(`Tandai "${p.nama}" sebagai selesai? Proyek pindah ke tab Selesai. Data tidak dihapus dan bisa dibuka kembali.`)) return;
+    p.selesai = true; p.selesaiTanggal = new Date().toISOString().slice(0,10);
+    showToast('Proyek ditandai selesai dan dipindah ke tab Selesai');
+  } else {
+    p.selesai = false; p.selesaiTanggal = null;
+    showToast('Proyek dibuka kembali dan masuk daftar Berjalan');
+  }
+  renderSelesaiUI();
 }
 
 function kembaliKeLanding(){
+  if(current && DATA[current].selesai) landingFilter = 'selesai'; else landingFilter = 'berjalan';
   current = null;
   document.getElementById('workspaceScreen').style.display = 'none';
   document.getElementById('landingScreen').style.display = 'block';
@@ -978,7 +1027,7 @@ function buatProyekBaru(){
   const key = 'proyek_' + Date.now();
   DATA[key] = { nama, minggu:0, rencanaKumulatif:0, realisasiKumulatif:0, mulaiTanggal: tanggal,
     akses:{ kode: generateKodeString(nama), aktif:true },
-    kontrakAwal:0, anggaranProduksi:0, penyesuaian:[], termin:[],
+    kontrakAwal:0, anggaranProduksi:0, penyesuaian:[], termin:[], selesai:false,
     kategori:[{ kode:"K01", nama:"Pekerjaan pendahuluan", bobot:0, items:[] }] };
   document.getElementById('newProjectNama').value = '';
   document.getElementById('newProjectTanggal').value = '';
@@ -1149,6 +1198,7 @@ function renderRingkasan(){
 }
 
 function renderChart(){
+  if(!current) return;   // sudah keluar dari proyek sebelum timer render jalan
   const p = DATA[current];
   const canvas = document.getElementById('sCurveChart');
   if(!canvas) return;
@@ -1423,6 +1473,10 @@ function showToast(msg){
       { id:'uform',kind:'info',  target:'#userFormBox', show:function(){return shown('landingScreen');},
         text:'Tambah akun: pilih peran, lalu centang proyeknya. <b>Vendor luar</b> cukup proyek yang dia kerjakan. Password sementara wajib diganti saat login pertama.' },
 
+      { id:'lsub', kind:'info', target:'#landingSub', show:function(){return shown('landingScreen');},
+        text:'Proyek yang sudah <b>selesai</b> pindah ke tab Selesai supaya daftar utama tetap ringkas. Data tidak dihapus.' },
+      { id:'bsel', kind:'info', target:'#btnSelesai', show:inWs,
+        text:'<b>Tandai selesai</b> (khusus Owner). Bisa <b>dibuka kembali</b> kapan saja. Dashboard klien tetap terbuka dengan keterangan "Proyek selesai".' },
       { id:'lstat',kind:'info', target:'#landingStats', show:function(){return shown('landingScreen');},
         text:'Ringkasan semua proyek sekaligus: jumlah proyek, yang butuh perhatian, rata-rata deviasi.' },
       { id:'lwarn',kind:'info', target:'#attentionBox .attention-box', show:function(){return shown('landingScreen');},
@@ -1474,6 +1528,6 @@ function showToast(msg){
   };
 })();
 </script>
-<script src="demo-guide.js?v=4"></script>
+<script src="demo-guide.js?v=5"></script>
 </body>
 </html>

@@ -115,6 +115,12 @@ Aturan keras:
 - Guard: tidak bisa menonaktifkan akun sendiri atau Owner aktif terakhir, tidak bisa menurunkan peran Owner terakhir.
 - Terbuka: vendor luar di proyeknya tetap melihat harga produksi proyek itu. Kalau itu tidak boleh, perlu peran ketiga "input progres saja" tanpa harga.
 
+**Proyek selesai (arsip, diputuskan 2026-11-23):** jumlah proyek bersamaan di Alison sekitar 3 sampai 5, jadi tidak perlu pengelompokan per klien
+atau akses per grup. Cukup: field `selesai` + `selesaiTanggal` per proyek, tombol **Tandai selesai / Buka kembali** (khusus Owner) di sidebar proyek,
+dan sub-tab **Berjalan | Selesai** di daftar proyek. Proyek selesai keluar dari statistik dan "Perlu perhatian", datanya tidak dihapus.
+Dashboard klien proyek selesai **tetap terbuka** dengan banner "Proyek selesai"; mematikannya lewat tombol Akses klien yang sudah ada (per proyek).
+Jika proyek bersamaan jadi jauh lebih banyak: tambah isian Klien/perumahan untuk pengelompokan, chip + pencarian untuk akses, akses per grup.
+
 **Peran admin: dua saja.**
 - **Owner** (= Admin): lihat semua. Harga produksi, harga jual, margin, termin, kode akses klien.
 - **Produksi** (menggantikan "Pengawas"): input progres + lihat **harga produksi saja**. Harga jual, termin, margin, tab Akses klien disembunyikan.
