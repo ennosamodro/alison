@@ -7,7 +7,7 @@ Rencana backend: Google Sheets + Apps Script Web App; frontend statis di Vercel.
 |---|---|
 | `admin-dashboard-konstruksi.html` | Dashboard admin (input progres, setup RAB, akses klien) |
 | `klien-dashboard-konstruksi.html` | Dashboard klien read-only (rekap kategori, kurva S, foto) |
-| `demo-guide.js` | Mode demo: kursor penunjuk + auto-isi password (hapus saat produksi) |
+| `demo-guide.js` | Mode demo: arahan saat mouse mendekati titik penting + auto-isi password (hapus saat produksi) |
 | `CLAUDE.md` | Catatan arahan lengkap untuk Claude Code |
 
 ## Status
@@ -28,10 +28,10 @@ Di produksi penyaringan peran harus dilakukan Apps Script, bukan di browser. Det
 
 `demo-guide.js` menambah dua hal di kedua dashboard:
 
-- **Kursor penunjuk** yang bergerak ke titik penting + balon penjelasan. Langkah "klik" lanjut otomatis saat diklik, langkah "info" pakai tombol *Lanjut*.
+- **Arahan saat mouse mendekati titik penting**: tidak ada kursor palsu. Balon penjelasan baru muncul ketika mouse (atau jari) kamu mengarah ke titik itu, dan hilang saat menjauh.
 - **Auto-isi password / PIN / kode**: ketik apa saja di kolomnya, otomatis terisi nilai demo yang benar (atau klik kotak merah muda di bawah kolom).
 
-Tombol pojok kiri bawah: **Mode demo ON/OFF** dan **Ulang**. Bisa juga dimatikan lewat `?demo=0` di URL.
+Tombol pojok kiri bawah: **Mode demo ON/OFF**. Bisa juga dimatikan lewat `?demo=0` di URL.
 
 **Saat disambung ke Apps Script: hapus tag `<script src="demo-guide.js">` dan blok `window.DEMO_GUIDE` di kedua HTML**,
 karena auto-isi membuka password ke siapa pun yang membuka halaman.

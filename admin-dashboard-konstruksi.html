@@ -1232,7 +1232,7 @@ function showToast(msg){
       { id:'wrab', kind:'info', target:'#view-rab .rab-form', show:function(){return inWs() && view('rab');},
         text:'Dipakai di awal proyek: tambah item pekerjaan, volume, dan bobot.' },
       { id:'nin',  kind:'click',target:'nav button[data-view="input"]', show:inWs, doneWhen:function(){return view('input')||view('edit')||view('keuangan')||view('akses');},
-        text:'Lanjut ke <b>Input mingguan</b>.' },
+        text:'Tab <b>Input mingguan</b>: isi progres tiap minggu.' },
       { id:'wkat', kind:'info', target:'#katNav', show:function(){return inWs() && view('input');},
         text:'Pilih kategori pekerjaan di sini.' },
       { id:'witm', kind:'info', target:'#itemPanelList', show:function(){return inWs() && view('input');},
@@ -1254,7 +1254,7 @@ function showToast(msg){
       { id:'wtm',  kind:'info', target:'#terminList', show:function(){return inWs() && view('keuangan');},
         text:'<b>Termin per milestone</b>: syarat progres, status bayar. Klik <i>Tandai dibayar</i> saat uang masuk.' },
       { id:'nak',  kind:'click',target:'nav button[data-view="akses"]', show:inWs, doneWhen:function(){return view('akses');},
-        text:'Terakhir: <b>Akses klien</b>.' },
+        text:'Tab <b>Akses klien</b> (khusus Owner).' },
       { id:'wkode',kind:'info', target:'#klienKode', show:function(){return inWs() && view('akses');},
         text:'Kode akses khusus proyek ini. Bisa <b>generate ulang</b> kalau bocor.' },
       { id:'wtog', kind:'info', target:'.toggle', show:function(){return inWs() && view('akses');},
@@ -1265,6 +1265,6 @@ function showToast(msg){
   };
 })();
 </script>
-<script src="demo-guide.js"></script>
+<script src="demo-guide.js?v=3"></script>
 </body>
 </html>
