@@ -1629,6 +1629,44 @@ function showToast(msg){
     var f = USERS.filter(function(x){return x.username===u;})[0] || USERS[0];
     return f.password;
   };
+  // Kartu "Yang bisa dicoba" di halaman login (hanya tampil saat mode demo ON, ikut terhapus bersama blok demo ini)
+  (function(){
+    var screen = document.getElementById('loginScreen'); if(!screen) return;
+    screen.style.flexWrap = 'wrap'; screen.style.gap = '22px';
+    var hideChips = document.createElement('style');           // kartu di samping sudah memuat info akun, kotak kecil di form jadi dobel
+    hideChips.textContent = '#loginBox .dg-chip{display:none !important}';
+    document.head.appendChild(hideChips);
+    var card = document.createElement('div');
+    card.className = 'dg-trial';
+    card.innerHTML =
+      '<h2>Yang bisa dicoba</h2>' +
+      '<div style="color:#655C54;">Ini mode demo. Data hanya di browser, hilang saat refresh.</div>' +
+      '<div class="dg-sub">Pilih akun (klik untuk masuk)</div>' +
+      '<button class="dg-acc" data-u="gilang"><span><b>gilang</b> · Owner</span><small>lihat semua</small></button>' +
+      '<button class="dg-acc" data-u="budi.mandor"><span><b>budi.mandor</b> · Produksi</span><small>tanpa harga jual</small></button>' +
+      '<button class="dg-acc" data-u="vendor.besi"><span><b>vendor.besi</b> · Produksi</span><small>hanya proyek C40</small></button>' +
+      '<div class="dg-sub">Coba ini</div>' +
+      '<ol>' +
+        '<li>Isi progress di <b>Input mingguan</b>, lalu lihat <b>Ringkasan</b> dan kurva S berubah. Klik <b>Submit</b>.</li>' +
+        '<li>Ubah harga item di <b>Edit detail</b>, lihat kontrak dan margin berubah.</li>' +
+        '<li>Tambah penyesuaian dan termin di <b>Keuangan</b>.</li>' +
+        '<li>Tandai proyek <b>selesai</b>, lalu cek tab Selesai.</li>' +
+        '<li>Tambah pengguna baru, atur proyeknya, lalu masuk sebagai dia.</li>' +
+        '<li>Buka <b>Riwayat perubahan</b>: siapa mengubah apa.</li>' +
+        '<li>Bandingkan tampilan <b>Owner</b> dan <b>Produksi</b>.</li>' +
+      '</ol>' +
+      '<div class="dg-note">Tab Keuangan, Pengguna, dan Riwayat hanya ada di akun Owner.</div>' +
+      '<div class="dg-sub">Tampilan klien</div>' +
+      '<a href="klien-dashboard-konstruksi.html?kode=C40-MIRAL6-X7K2" style="color:#B23A2E;">Buka dashboard klien contoh</a>';
+    screen.appendChild(card);
+    card.addEventListener('click', function(e){
+      var b = e.target.closest ? e.target.closest('.dg-acc') : null; if(!b) return;
+      var u = USERS.filter(function(x){return x.username===b.getAttribute('data-u');})[0]; if(!u) return;
+      document.getElementById('loginUser').value = u.username;
+      document.getElementById('loginPass').value = u.password;
+      cekLogin();
+    });
+  })();
   window.DEMO_GUIDE = {
     fields: [
       { selector:'#loginUser', value:pickUser, label:'Akun demo (peran berbeda, tampilan berbeda)',
@@ -1711,6 +1749,6 @@ function showToast(msg){
   };
 })();
 </script>
-<script src="demo-guide.js?v=8"></script>
+<script src="demo-guide.js?v=10"></script>
 </body>
 </html>

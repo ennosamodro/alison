@@ -42,6 +42,18 @@
     '.dg-chip{display:none;margin:8px 0 0;font:12px system-ui,sans-serif;color:#7A231C;background:#f6e4e1;',
     ' border:1px dashed #B23A2E;border-radius:7px;padding:6px 9px;cursor:pointer;text-align:left}',
     'body.dg-on .dg-chip{display:block}',
+    '.dg-trial{display:none;max-width:380px;width:100%;background:#fff;border:1px dashed #B23A2E;border-radius:14px;',
+    ' padding:22px 24px;font:13px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#2A2420;text-align:left}',
+    'body.dg-on .dg-trial{display:block}',
+    '.dg-trial h2{font-size:14px;margin:0 0 4px}',
+    '.dg-trial .dg-sub{font-size:11px;color:#A29A90;text-transform:uppercase;letter-spacing:.04em;margin:14px 0 6px}',
+    '.dg-trial .dg-acc{display:flex;justify-content:space-between;gap:10px;width:100%;background:#F6F4EF;border:1px solid #E4DED4;',
+    ' border-radius:8px;padding:8px 10px;margin-bottom:6px;cursor:pointer;font:inherit;text-align:left;color:inherit}',
+    '.dg-trial .dg-acc:hover{border-color:#B23A2E}',
+    '.dg-trial .dg-acc small{color:#655C54}',
+    '.dg-trial ol{margin:0;padding-left:20px}',
+    '.dg-trial li{margin-bottom:4px}',
+    '.dg-trial .dg-note{font-size:12px;color:#7A5B1E;background:#FDF6ED;border-radius:8px;padding:8px 10px;margin-top:12px}',
     '@media print{.dg-bubble,.dg-bar,.dg-chip{display:none!important}}'
   ].join('');
   var st = document.createElement('style');
