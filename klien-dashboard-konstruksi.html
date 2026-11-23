@@ -226,9 +226,11 @@ const DATA = {
     mingguTerbaru: 3,
     // Dummy keuangan sisi jual. Harga produksi TIDAK PERNAH ada di data klien (di produksi: disaring Apps Script).
     kontrakAwal: 1250000000,
+    // Penyesuaian: jenis tambah/kurang, wajib menunjuk kategori. Hanya nilai JUAL (nilai produksi tidak dikirim ke klien).
+    // progres = % pekerjaan tambah yang sudah selesai (hanya untuk jenis "tambah").
     penyesuaian: [
-      { minggu:2, ket:"Tambah: kanopi carport", nilai: 28500000 },
-      { minggu:3, ket:"Kurang: pagar belakang ditiadakan", nilai: -12000000 },
+      { minggu:2, jenis:"tambah", kategori:"Pekerjaan tambah",  ket:"Kanopi carport",            nilai: 28500000, progres:0 },
+      { minggu:3, jenis:"kurang", kategori:"Pekerjaan dinding", ket:"Pagar belakang ditiadakan", nilai:-12000000 },
     ],
     termin: [
       { no:1, nama:"Pondasi selesai",                       persen:10, syarat:6,   bayarMinggu:3 },
@@ -370,7 +372,9 @@ function hitungKeuangan(p, wk){
   const kontrak = p.kontrakAwal + adj.reduce((a,x)=>a+x.nilai, 0);
   const paid = p.termin.filter(t => t.bayarMinggu!=null && t.bayarMinggu<=wk);
   const terbayarPct = paid.reduce((a,t)=>a+t.persen, 0);
-  const terealisasi = real/100*kontrak;
+  // Terealisasi = progres RAB awal x kontrak awal + progres pekerjaan tambah (item kurang dianggap belum dikerjakan).
+  const tambahDone = adj.filter(a=>a.jenis==='tambah').reduce((s,a)=>s + (a.progres||0)/100*a.nilai, 0);
+  const terealisasi = real/100*p.kontrakAwal + tambahDone;
   const terbayar = terbayarPct/100*kontrak;
   const selisih = terealisasi - terbayar;
   const tol = 0.02*kontrak;   // toleransi 2% dari nilai kontrak dianggap "sejalan"
@@ -385,7 +389,7 @@ function renderKeuangan(p, wk){
     <div class="card"><div class="label">Nilai kontrak</div><div class="value" style="font-size:17px;">${rp(f.kontrak)}</div>
       <div class="hint">${adjNet!==0 ? 'Awal '+rpS(p.kontrakAwal)+(adjNet>0?' + ':' − ')+rpS(Math.abs(adjNet))+' penyesuaian' : 'Sesuai kontrak awal'}</div></div>
     <div class="card"><div class="label">Pekerjaan terealisasi</div><div class="value" style="font-size:17px;">${rp(f.terealisasi)}</div>
-      <div class="hint">${fmt(f.real)}% dari nilai kontrak</div></div>
+      <div class="hint">${fmt(f.terealisasi/f.kontrak*100)}% dari nilai kontrak</div></div>
     <div class="card"><div class="label">Pembayaran masuk</div><div class="value" style="font-size:17px;">${rp(f.terbayar)}</div>
       <div class="hint">${f.paid.length} dari ${p.termin.length} termin · ${fmt(f.terbayarPct)}%</div></div>
     <div class="card"><div class="label">Selisih</div><div class="value ${f.selisih>=0?'pos':'neg'}" style="font-size:17px;">${f.selisih>=0?'+':''}${rp(f.selisih)}</div>
@@ -402,7 +406,7 @@ function renderKeuangan(p, wk){
   document.getElementById('selisihBox').innerHTML = `<div class="fin-box ${teks[0]}"><b>${teks[1]}</b><br>${teks[2]}</div>`;
 
   document.getElementById('penyesuaianList').innerHTML = f.adj.map(a =>
-    `<li>Minggu ke-${a.minggu} · ${a.ket} · <b>${a.nilai>=0?'+':'−'}${rp(Math.abs(a.nilai))}</b></li>`).join('');
+    `<li>Minggu ke-${a.minggu} · <b>${a.jenis==='tambah'?'Tambah':'Kurang'}</b> di ${a.kategori}: ${a.ket} · <b>${a.nilai>=0?'+':'−'}${rp(Math.abs(a.nilai))}</b></li>`).join('');
 
   let nextShown = false;
   document.getElementById('terminBox').innerHTML = p.termin.map(t => {
@@ -475,12 +479,20 @@ function renderMingguKlien(){
   const totBobot = w.kategori.reduce((a,k)=>a+k.bobot,0);
   const totLalu = w.kategori.reduce((a,k)=>a+k.lalu,0);
   const totIni = w.kategori.reduce((a,k)=>a+k.ini,0);
-  document.getElementById('rekapBody').innerHTML = w.kategori.map((k, ki) => {
+  // Kategori dari penyesuaian yang belum ada di rekap (mis. "Pekerjaan tambah") ditampilkan sebagai baris tambahan.
+  const namaAda = new Set(w.kategori.map(k=>k.nama));
+  const katExtra = [...new Set(fin.adj.map(a=>a.kategori))].filter(n=>!namaAda.has(n))
+    .map(n => ({ nama:n, bobot:0, lalu:0, ini:0, items:[], baru:true }));
+  const adjKat = (nama) => fin.adj.filter(a=>a.kategori===nama);
+  document.getElementById('rekapBody').innerHTML = w.kategori.concat(katExtra).map((k, ki) => {
+    const nilaiKat = k.bobot/100*p.kontrakAwal + adjKat(k.nama).reduce((s,a)=>s+a.nilai, 0);
+    const doneKat = (k.lalu+k.ini)/100*p.kontrakAwal + adjKat(k.nama).filter(a=>a.jenis==='tambah').reduce((s,a)=>s+(a.progres||0)/100*a.nilai, 0);
+    const adjTxt = adjKat(k.nama).map(a => `${a.jenis==='tambah'?'+':'−'}${rpS(Math.abs(a.nilai))} ${a.ket.toLowerCase()}`).join(', ');
     const hasItems = k.items && k.items.length > 0;
     return `
     <div>
       <div class="kat-row ${hasItems?'clickable':''}" ${hasItems?`onclick="toggleKatRow(${ki})"`:''} id="katrow-${ki}">
-        <div>${k.nama}<div class="kat-item-loc" style="text-align:left;">Nilai ${rpS(k.bobot/100*fin.kontrak)} · terealisasi ${rpS((k.lalu+k.ini)/100*fin.kontrak)}</div></div><div>${fmt(k.bobot)}</div><div>${fmt(k.lalu)}</div><div>${fmt(k.ini)}</div><div>${fmt(k.lalu+k.ini)}</div>
+        <div>${k.nama}<div class="kat-item-loc" style="text-align:left;">Nilai ${rpS(nilaiKat)} · terealisasi ${rpS(doneKat)}${adjTxt?` · <span style="color:#1D4C8C;">penyesuaian: ${adjTxt}</span>`:''}</div></div><div>${fmt(k.bobot)}</div><div>${fmt(k.lalu)}</div><div>${fmt(k.ini)}</div><div>${fmt(k.lalu+k.ini)}</div>
         <div class="chev">${hasItems?'&#9656;':''}</div>
       </div>
       <div class="kat-items" id="katitems-${ki}">

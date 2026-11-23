@@ -454,12 +454,16 @@
       <div id="finSummary"></div>
 
       <div class="rab-form">
-        <h3>Penyesuaian nilai kontrak (tambah / kurang pekerjaan)</h3>
+        <h3>Penyesuaian kontrak (tambah / kurang pekerjaan)</h3>
         <div id="penyesuaianList"></div>
-        <div class="form-grid" style="margin-top:12px;">
-          <div class="full"><label>Keterangan</label><input type="text" id="pnKet" placeholder="misal: Tambah kanopi carport"></div>
-          <div><label>Nilai (Rp, minus untuk pengurangan)</label><input type="number" id="pnNilai" placeholder="28500000"></div>
-          <div><label>Mulai berlaku minggu ke-</label><input type="number" id="pnMinggu" min="1" placeholder="1"></div>
+        <p class="empty-hint" style="padding:10px 0 0;">Tiap penyesuaian wajib menunjuk kategori dan punya dua harga. Ketik angka positif, tandanya diatur dari "Jenis". Klien hanya melihat nilai jual.</p>
+        <div class="form-grid" style="margin-top:6px;">
+          <div><label>Jenis</label><select id="pnJenis"><option value="tambah">Tambah pekerjaan</option><option value="kurang">Kurang pekerjaan</option></select></div>
+          <div><label>Kategori yang terdampak</label><select id="pnKategori"></select></div>
+          <div class="full"><label>Keterangan</label><input type="text" id="pnKet" placeholder="misal: Kanopi carport / Pagar belakang ditiadakan"></div>
+          <div><label>Nilai jual (Rp)</label><input type="number" id="pnNilai" placeholder="28500000"></div>
+          <div><label>Nilai produksi (Rp)</label><input type="number" id="pnNilaiProd" placeholder="21000000"></div>
+          <div class="full"><label>Mulai berlaku minggu ke-</label><input type="number" id="pnMinggu" min="1" placeholder="1"></div>
         </div>
         <div class="form-actions"><button class="primary" onclick="tambahPenyesuaian()">Tambah penyesuaian</button></div>
       </div>
@@ -525,9 +529,10 @@ const DATA = {
     mulaiTanggal: "2026-08-26",
     akses: { kode: "C40-MIRAL6-X7K2", aktif: true },
     kontrakAwal: 1250000000, anggaranProduksi: 1010000000,
+    // Penyesuaian: jenis, kategori wajib, dua harga. nilai = harga jual (ke klien), nilaiProd = harga produksi. Tanda minus = kurang.
     penyesuaian: [
-      { minggu:2, ket:"Tambah: kanopi carport", nilai: 28500000 },
-      { minggu:3, ket:"Kurang: pagar belakang ditiadakan", nilai: -12000000 },
+      { minggu:2, jenis:"tambah", kategori:"Pekerjaan tambah",  ket:"Kanopi carport",            nilai: 28500000, nilaiProd: 21000000, progres:0 },
+      { minggu:3, jenis:"kurang", kategori:"Pekerjaan dinding", ket:"Pagar belakang ditiadakan", nilai:-12000000, nilaiProd: -9000000 },
     ],
     termin: [
       { nama:"Pondasi selesai",                         persen:10, syarat:6,   bayarMinggu:3 },
@@ -618,15 +623,20 @@ const ADMIN_PINS = {
 // ----- Keuangan: persen realisasi x nilai kontrak berlaku (harga jual) -----
 function rp(n){ return (n<0?'-':'') + 'Rp ' + Math.abs(Math.round(n)).toLocaleString('id-ID'); }
 function hitungKeuangan(p){
-  const kontrak = p.kontrakAwal + p.penyesuaian.reduce((a,x)=>a+x.nilai, 0);
+  const adj = p.penyesuaian;
+  const kontrak = p.kontrakAwal + adj.reduce((a,x)=>a+x.nilai, 0);
+  const anggaran = p.anggaranProduksi + adj.reduce((a,x)=>a+(x.nilaiProd||0), 0);   // anggaran produksi berlaku
   const paid = p.termin.filter(t => t.bayarMinggu!=null && t.bayarMinggu<=p.minggu);
   const terbayarPct = paid.reduce((a,t)=>a+t.persen, 0);
-  const terealisasi = p.realisasiKumulatif/100*kontrak;
+  // Terealisasi = progres RAB awal x kontrak awal + progres pekerjaan tambah (item kurang dianggap belum dikerjakan)
+  const tambah = adj.filter(a=>a.jenis==='tambah');
+  const terealisasi = p.realisasiKumulatif/100*p.kontrakAwal + tambah.reduce((s,a)=>s+(a.progres||0)/100*a.nilai, 0);
+  const terealisasiProd = p.realisasiKumulatif/100*p.anggaranProduksi + tambah.reduce((s,a)=>s+(a.progres||0)/100*(a.nilaiProd||0), 0);
   const terbayar = terbayarPct/100*kontrak;
   const selisih = terealisasi - terbayar;
   const status = Math.abs(selisih) <= 0.02*kontrak ? 'ok' : (selisih>0 ? 'lead' : 'adv');
-  return { kontrak, paid, terbayarPct, terealisasi, terbayar, selisih, status,
-           margin: kontrak - p.anggaranProduksi, marginPct: kontrak ? (kontrak - p.anggaranProduksi)/kontrak*100 : 0 };
+  return { kontrak, anggaran, paid, terbayarPct, terealisasi, terealisasiProd, terbayar, selisih, status,
+           margin: kontrak - anggaran, marginPct: kontrak ? (kontrak - anggaran)/kontrak*100 : 0 };
 }
 function selisihBoxHtml(f){
   const t = {
@@ -811,20 +821,22 @@ function renderNominal(){
   if(isOwner()){
     box.innerHTML =
       card('Nilai kontrak (jual)', rp(f.kontrak), 'termasuk penyesuaian') +
-      card('Pekerjaan terealisasi', rp(f.terealisasi), fmt(p.realisasiKumulatif)+'% dari kontrak') +
+      card('Pekerjaan terealisasi', rp(f.terealisasi), fmt(f.terealisasi/f.kontrak*100)+'% dari kontrak') +
       card('Pembayaran masuk', rp(f.terbayar), f.paid.length+' dari '+p.termin.length+' termin') +
       card('Selisih (pekerjaan − bayar)', (f.selisih>=0?'+':'')+rp(f.selisih), '', f.selisih>=0?'pos':'neg') +
-      card('Anggaran produksi', rp(p.anggaranProduksi), 'harga produksi') +
+      card('Anggaran produksi', rp(f.anggaran), 'termasuk penyesuaian') +
       card('Margin rencana', rp(f.margin), fmt(f.marginPct)+'% dari kontrak');
     sel.innerHTML = selisihBoxHtml(f);
   } else {
     // Peran Produksi: hanya angka produksi. Harga jual, termin, margin tidak dikirim/ditampilkan.
-    const real = p.realisasiKumulatif/100*p.anggaranProduksi;
     box.innerHTML =
-      card('Anggaran produksi', rp(p.anggaranProduksi), 'harga produksi') +
-      card('Nilai produksi terealisasi', rp(real), fmt(p.realisasiKumulatif)+'% dari anggaran') +
-      card('Sisa anggaran', rp(p.anggaranProduksi - real), '');
-    sel.innerHTML = '';
+      card('Anggaran produksi', rp(f.anggaran), 'harga produksi, termasuk penyesuaian') +
+      card('Nilai produksi terealisasi', rp(f.terealisasiProd), fmt(f.terealisasiProd/f.anggaran*100)+'% dari anggaran') +
+      card('Sisa anggaran', rp(f.anggaran - f.terealisasiProd), '');
+    // Penyesuaian dari sisi produksi: hanya nilai produksi, tanpa nilai jual.
+    sel.innerHTML = p.penyesuaian.length ? `<div class="fin-box sel-ok" style="background:var(--paper); border-color:var(--line); color:var(--ink);">
+      <b>Penyesuaian pekerjaan (nilai produksi)</b><ul style="margin:6px 0 0; padding-left:18px;">
+      ${p.penyesuaian.map(a=>`<li>Minggu ${a.minggu} · ${a.jenis==='tambah'?'Tambah':'Kurang'} di ${a.kategori}: ${a.ket} · <b>${a.nilaiProd>=0?'+':'−'}${rp(Math.abs(a.nilaiProd||0))}</b></li>`).join('')}</ul></div>` : '';
   }
 }
 
@@ -839,13 +851,26 @@ function renderKeuangan(){
       <div class="card"><div class="label">Kontrak awal</div><div class="value">${rp(p.kontrakAwal)}</div></div>
       <div class="card"><div class="label">Penyesuaian</div><div class="value ${adjNet>=0?'pos':'neg'}">${adjNet>=0?'+':''}${rp(adjNet)}</div></div>
       <div class="card"><div class="label">Kontrak berlaku</div><div class="value">${rp(f.kontrak)}</div></div>
-      <div class="card"><div class="label">Anggaran produksi</div><div class="value">${rp(p.anggaranProduksi)}</div></div>
+      <div class="card"><div class="label">Anggaran produksi berlaku</div><div class="value">${rp(f.anggaran)}</div><div class="hint">awal ${rp(p.anggaranProduksi)}</div></div>
       <div class="card"><div class="label">Margin rencana</div><div class="value ${f.margin>=0?'pos':'neg'}">${rp(f.margin)}</div><div class="hint">${fmt(f.marginPct)}%</div></div>
     </div>${selisihBoxHtml(f)}`;
 
+  // pilihan kategori untuk form penyesuaian: kategori RAB proyek + "Pekerjaan tambah"
+  const selKat = document.getElementById('pnKategori');
+  if(selKat){
+    const cur = selKat.value;
+    const namaKat = p.kategori.map(k=>k.nama);
+    if(!namaKat.includes('Pekerjaan tambah')) namaKat.push('Pekerjaan tambah');
+    selKat.innerHTML = namaKat.map(n=>`<option>${n}</option>`).join('');
+    if(namaKat.includes(cur)) selKat.value = cur;
+  }
+  const sg = n => (n>=0?'+':'−') + rp(Math.abs(n));
   document.getElementById('penyesuaianList').innerHTML = p.penyesuaian.length ? `
-    <table class="fin"><thead><tr><th>Minggu</th><th>Keterangan</th><th class="num">Nilai</th><th></th></tr></thead><tbody>
-    ${p.penyesuaian.map((a,i)=>`<tr><td>${a.minggu}</td><td>${a.ket}</td><td class="num">${a.nilai>=0?'+':''}${rp(a.nilai)}</td>
+    <table class="fin"><thead><tr><th>Mgg</th><th>Jenis</th><th>Kategori &amp; keterangan</th><th class="num">Nilai jual</th><th class="num">Nilai produksi</th><th class="num">Margin</th><th></th></tr></thead><tbody>
+    ${p.penyesuaian.map((a,i)=>`<tr><td>${a.minggu}</td>
+      <td><span class="pill ${a.jenis==='tambah'?'st-paid':'st-ready'}">${a.jenis==='tambah'?'Tambah':'Kurang'}</span></td>
+      <td>${a.kategori}<div class="item-loc">${a.ket}</div></td>
+      <td class="num">${sg(a.nilai)}</td><td class="num">${sg(a.nilaiProd||0)}</td><td class="num">${sg(a.nilai-(a.nilaiProd||0))}</td>
       <td style="text-align:right;"><button class="danger" onclick="hapusPenyesuaian(${i})">Hapus</button></td></tr>`).join('')}
     </tbody></table>` : '<div class="empty-hint" style="padding:0;">Belum ada penyesuaian. Kontrak berlaku = kontrak awal.</div>';
 
@@ -870,12 +895,18 @@ function renderKeuangan(){
 
 function tambahPenyesuaian(){
   const p = DATA[current];
+  const jenis = document.getElementById('pnJenis').value;
+  const kategori = document.getElementById('pnKategori').value;
   const ket = document.getElementById('pnKet').value.trim();
-  const nilai = parseFloat(document.getElementById('pnNilai').value);
+  const jual = Math.abs(parseFloat(document.getElementById('pnNilai').value));
+  const prod = Math.abs(parseFloat(document.getElementById('pnNilaiProd').value));
   const minggu = parseInt(document.getElementById('pnMinggu').value) || Math.max(p.minggu,1);
-  if(!ket || isNaN(nilai)){ showToast('Isi keterangan dan nilai dulu'); return; }
-  p.penyesuaian.push({ minggu, ket, nilai });
-  ['pnKet','pnNilai','pnMinggu'].forEach(id=>document.getElementById(id).value='');
+  if(!ket || isNaN(jual) || isNaN(prod)){ showToast('Isi keterangan, nilai jual, dan nilai produksi dulu'); return; }
+  const s = jenis==='kurang' ? -1 : 1;   // tanda diatur dari "jenis", ketik angka positif saja
+  const item = { minggu, jenis, kategori, ket, nilai: s*jual, nilaiProd: s*prod };
+  if(jenis==='tambah') item.progres = 0;
+  p.penyesuaian.push(item);
+  ['pnKet','pnNilai','pnNilaiProd','pnMinggu'].forEach(id=>document.getElementById(id).value='');
   renderKeuangan(); renderNominal();
   showToast('Penyesuaian kontrak ditambahkan — dashboard klien ikut berubah');
 }

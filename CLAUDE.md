@@ -116,7 +116,13 @@ Aturan keras:
 - Pembayaran masuk = jumlah termin yang sudah dibayar. Selisih = terealisasi − terbayar.
 - Label netral, toleransi ±2% nilai kontrak: *sejalan* / *pekerjaan lebih dulu dari pembayaran* / *pembayaran lebih dulu dari pekerjaan*.
 - **Termin berbasis milestone**: tiap termin punya persen, syarat progres (%), minggu dibayar. Status: dibayar / syarat tercapai / belum jatuh tempo.
-- **Penyesuaian kontrak** minimal: baris (minggu, keterangan, nilai ±). Belum ada alur persetujuan addendum lengkap.
+- **Penyesuaian kontrak** (tambah/kurang pekerjaan): tiap baris punya **jenis, kategori wajib, dua harga** (nilai jual dan nilai produksi), minggu berlaku.
+  - Tambah: item baru di kategori terpilih, atau kategori "Pekerjaan tambah". Punya progres sendiri (%).
+  - Kurang: mengurangi pekerjaan yang sudah ada di RAB awal (hapus item, kurangi volume, ganti spek yang hasilnya minus), menunjuk kategori terdampak.
+  - Nilai jual masuk ke nilai kategori di dashboard klien; nilai produksi menambah/mengurangi anggaran produksi → margin dihitung ulang.
+  - Klien hanya menerima nilai jual. Produksi hanya melihat nilai produksi. Owner melihat keduanya + margin per penyesuaian.
+  - Terealisasi = progres RAB awal × kontrak awal + progres pekerjaan tambah × nilai jualnya (item "kurang" dianggap belum dikerjakan; kasus sudah terlanjur dikerjakan sebagian: tanyakan Alison).
+  - Belum ada alur persetujuan addendum lengkap.
 - Harga produksi TIDAK PERNAH ada di respons endpoint klien.
 
 **Tambahan tab Sheets:** `Termin` (Project ID, No, Milestone, Persen, Syarat progres, Minggu dibayar) dan
