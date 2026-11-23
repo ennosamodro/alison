@@ -343,9 +343,13 @@
   <div id="landingUsersWrap" style="display:none;">
     <p class="empty-hint" style="padding-top:0;">Hanya Owner yang melihat halaman ini. Atur siapa boleh masuk, perannya, dan proyek apa saja yang boleh dibuka. Vendor luar cukup dicentang proyeknya saja. Di produksi, password disimpan sebagai hash di server (di prototype ini masih teks biasa).<span class="dummy-flag">data dummy</span></p>
     <div id="usersNotice"></div>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
+      <div class="landing-section-label" style="margin:0;">Akun pengguna</div>
+      <button class="primary" id="btnTambahUser" onclick="bukaFormUser()">+ Tambah pengguna</button>
+    </div>
     <div id="usersTable"></div>
 
-    <div class="rab-form" id="userFormBox" style="margin-top:16px; max-width:640px;">
+    <div class="rab-form" id="userFormBox" style="display:none; margin-top:16px; max-width:640px;">
       <h3 id="userFormTitle">Tambah pengguna</h3>
       <div class="form-grid">
         <div><label>Nama</label><input type="text" id="uNama" placeholder="misal: Budi (Mandor)"></div>
@@ -822,8 +826,16 @@ function syncUserForm(){
   semua.disabled = owner;
   document.getElementById('uProyekWrap').style.display = (owner || semua.checked) ? 'none' : '';
 }
+function bukaFormUser(){
+  resetUserForm();
+  const box = document.getElementById('userFormBox');
+  box.style.display = '';
+  box.scrollIntoView({ behavior:'smooth', block:'center' });
+  document.getElementById('uNama').focus({ preventScroll:true });
+}
 function resetUserForm(){
   editingUser = null;
+  document.getElementById('userFormBox').style.display = 'none';   // form hanya terbuka lewat "+ Tambah pengguna" atau "Edit"
   document.getElementById('userFormTitle').textContent = 'Tambah pengguna';
   ['uNama','uUsername'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('uUsername').disabled = false;
@@ -846,6 +858,7 @@ function editUser(username){
   document.getElementById('uPwWrap').style.display = 'none';    // password diganti lewat "Reset password"
   renderProyekChecks(u.proyek);
   syncUserForm();
+  document.getElementById('userFormBox').style.display = '';
   document.getElementById('userFormBox').scrollIntoView({ behavior:'smooth', block:'center' });
 }
 function ownerAktifLain(exceptUsername){
@@ -1470,6 +1483,8 @@ function showToast(msg){
         text:'Tab <b>Pengguna &amp; akses</b> (khusus Owner): atur siapa boleh masuk dan proyek apa saja yang boleh dibuka.' },
       { id:'utbl', kind:'info',  target:'#usersTable', show:function(){return shown('landingScreen');},
         text:'Daftar akun: peran, proyek yang boleh dibuka, aktif/nonaktif, <b>reset password</b>.' },
+      { id:'uadd', kind:'click', target:'#btnTambahUser', show:function(){return shown('landingScreen');},
+        text:'<b>+ Tambah pengguna</b>: satu akun untuk satu orang, bukan akun jabatan. Peran hanya atribut akunnya.' },
       { id:'uform',kind:'info',  target:'#userFormBox', show:function(){return shown('landingScreen');},
         text:'Tambah akun: pilih peran, lalu centang proyeknya. <b>Vendor luar</b> cukup proyek yang dia kerjakan. Password sementara wajib diganti saat login pertama.' },
 
@@ -1528,6 +1543,6 @@ function showToast(msg){
   };
 })();
 </script>
-<script src="demo-guide.js?v=5"></script>
+<script src="demo-guide.js?v=6"></script>
 </body>
 </html>
