@@ -101,7 +101,34 @@ Aturan keras:
 - Klien boleh pilih minggu sebelumnya (riwayat) di dashboard.
 - Admin bisa isi/koreksi minggu apa pun.
 
+## Peran & keuangan (hasil diskusi dengan Alison, 2026-11-23)
+
+**Peran admin: dua saja.**
+- **Owner** (= Admin): lihat semua. Harga produksi, harga jual, margin, termin, kode akses klien.
+- **Produksi** (menggantikan "Pengawas"): input progres + lihat **harga produksi saja**. Harga jual, termin, margin, tab Akses klien disembunyikan.
+- Penyaringan WAJIB di Apps Script: untuk peran Produksi server tidak mengirim `hargaJual`, termin, margin, kode klien.
+  Menyembunyikan di CSS/JS tidak cukup (data tetap terkirim ke browser). Prototype sekarang hanya tidak me-render-nya ke DOM.
+- Sheets hanya dibuka Owner/Lenno; tim lain lewat dashboard. Kalau perlu isolasi lebih kuat: pisah harga produksi dan harga jual ke dua file Sheets.
+
+**Dashboard klien menampilkan nominal (harga jual, per KATEGORI, bukan per item):**
+- Nilai kontrak berlaku = kontrak awal + penyesuaian (tambah/kurang pekerjaan).
+- Pekerjaan terealisasi (Rp) = % realisasi × nilai kontrak berlaku.
+- Pembayaran masuk = jumlah termin yang sudah dibayar. Selisih = terealisasi − terbayar.
+- Label netral, toleransi ±2% nilai kontrak: *sejalan* / *pekerjaan lebih dulu dari pembayaran* / *pembayaran lebih dulu dari pekerjaan*.
+- **Termin berbasis milestone**: tiap termin punya persen, syarat progres (%), minggu dibayar. Status: dibayar / syarat tercapai / belum jatuh tempo.
+- **Penyesuaian kontrak** minimal: baris (minggu, keterangan, nilai ±). Belum ada alur persetujuan addendum lengkap.
+- Harga produksi TIDAK PERNAH ada di respons endpoint klien.
+
+**Tambahan tab Sheets:** `Termin` (Project ID, No, Milestone, Persen, Syarat progres, Minggu dibayar) dan
+`Penyesuaian Kontrak` (Project ID, Minggu, Keterangan, Nilai). Master item bertambah kolom `Harga Produksi` dan `Harga Jual` (per satuan).
+Nilai kontrak awal & anggaran produksi per proyek masuk `Config Proyek`.
+
+**Impor RAB dari Excel (rencana):** kotak "Tempel dari Excel" di Setup RAB, format datar
+`Kode | Kategori | Lokasi | Nama Item | Volume | Satuan | Harga Produksi | Harga Jual`. Bobot dihitung dari nilai item, bukan diketik.
+
 ## Keputusan terbuka (tanya Lenno sebelum mengunci)
+
+0. Bobot progres dihitung dari harga produksi atau harga jual? (prototype: bobot manual, nominal klien pakai % × nilai kontrak jual)
 
 1. **Rencana per minggu:** PDF hanya punya rencana bulanan per kategori. Interpolasi ke mingguan, atau rencana per item?
    Prototype pakai interpolasi dummy.

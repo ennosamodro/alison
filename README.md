@@ -15,6 +15,15 @@ Rencana backend: Google Sheets + Apps Script Web App; frontend statis di Vercel.
 Prototype dengan data dummy. Belum terhubung ke Sheets/Apps Script.
 Password, PIN, dan kode akses di file ini hanya contoh (`demo123`, `1234`, `C40-MIRAL6-X7K2`).
 
+## Peran & nominal (prototype)
+
+- **Owner** (PIN `1234`): lihat semua, plus tab *Keuangan & termin* (kontrak, penyesuaian, termin milestone, margin).
+- **Produksi** (PIN `5678`): hanya harga produksi; harga jual, termin, margin, akses klien tidak tampil.
+- **Klien**: nilai per kategori (Rp), pekerjaan terealisasi vs pembayaran masuk, termin per milestone, kurva S + garis pembayaran.
+  Contoh C40 = pekerjaan lebih dulu dari pembayaran; D12 = pembayaran (uang muka) lebih dulu.
+
+Di produksi penyaringan peran harus dilakukan Apps Script, bukan di browser. Detail di CLAUDE.md.
+
 ## Mode demo (untuk presentasi)
 
 `demo-guide.js` menambah dua hal di kedua dashboard:

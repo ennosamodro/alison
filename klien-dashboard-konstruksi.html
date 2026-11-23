@@ -97,6 +97,29 @@
   .aktivitas-grid li{margin-bottom:6px;}
   .aktivitas-grid h4{font-size:12px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; margin:0 0 10px;}
 
+  /* Nilai & pembayaran */
+  .fin-box{border-radius:9px; padding:12px 14px; font-size:13px; line-height:1.55; margin-bottom:14px; border:1px solid;}
+  .fin-box b{font-weight:700;}
+  .fin-box.sel-ok{background:var(--green-fill); border-color:#BCD9C2; color:#2C5C3B;}
+  .fin-box.sel-lead{background:#E3EEFB; border-color:#B7D0F1; color:#1D4C8C;}
+  .fin-box.sel-adv{background:#FBF0DC; border-color:#EBD4A4; color:#7A5410;}
+  .fin-sub{font-size:11px; color:var(--ink-faint); margin:2px 0 0;}
+  .penyesuaian-list{font-size:12px; color:var(--ink-soft); margin:0 0 14px; padding-left:18px;}
+  .penyesuaian-list li{margin-bottom:3px;}
+  .sub-h{font-size:12px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; margin:18px 0 10px; font-weight:600;}
+  .termin-row{display:grid; grid-template-columns:28px 1fr auto; gap:10px; align-items:start; padding:11px 0; border-top:1px solid var(--line);}
+  .termin-row:first-of-type{border-top:none;}
+  .termin-row .tn{font-family:var(--mono); font-size:12px; color:var(--ink-faint); padding-top:2px;}
+  .termin-row .tt{font-size:13px; font-weight:600;}
+  .termin-row .td{font-size:11.5px; color:var(--ink-faint); font-family:var(--mono); margin-top:2px;}
+  .pill{font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; white-space:nowrap;}
+  .pill.st-paid{background:var(--green-fill); color:#2C5C3B;}
+  .pill.st-ready{background:#FBF0DC; color:#7A5410;}
+  .pill.st-wait{background:var(--paper); color:var(--ink-faint); border:1px solid var(--line);}
+  .tbar{height:6px; background:var(--paper); border-radius:3px; margin-top:8px; max-width:340px; overflow:hidden;}
+  .tbar > div{height:100%; background:linear-gradient(90deg,#C1443A,var(--accent-dark)); border-radius:3px;}
+  .tbar-l{font-size:11px; color:var(--ink-soft); margin-top:4px;}
+
   .footer-note{text-align:center; font-size:11px; color:var(--ink-faint); margin-top:20px;}
   .empty-hint{font-size:12px; color:var(--ink-faint); font-style:italic;}
 </style>
@@ -138,11 +161,21 @@
     </div>
   </div>
 
+  <div class="panel" id="panelKeuangan">
+    <h3>Nilai pekerjaan &amp; pembayaran</h3>
+    <div class="cards" id="finCards"></div>
+    <div id="selisihBox"></div>
+    <ul class="penyesuaian-list" id="penyesuaianList"></ul>
+    <div class="sub-h">Termin pembayaran (per milestone)</div>
+    <div id="terminBox"></div>
+  </div>
+
   <div class="panel">
     <h3>Kurva S — Rencana vs Realisasi</h3>
     <div class="chart-legend">
       <span><span class="dot" style="background:#2a78d6;"></span>Rencana</span>
       <span><span class="dot" style="background:var(--accent);"></span>Realisasi</span>
+      <span><span class="dot" style="background:#C58A1E;"></span>Pembayaran masuk</span>
     </div>
     <div style="position:relative; height:260px;"><canvas id="klienChart"></canvas></div>
   </div>
@@ -191,9 +224,23 @@ const DATA = {
   "C40-MIRAL6-X7K2": {
     nama: "Miral 6 Residence — Blok C40",
     mingguTerbaru: 3,
+    // Dummy keuangan sisi jual. Harga produksi TIDAK PERNAH ada di data klien (di produksi: disaring Apps Script).
+    kontrakAwal: 1250000000,
+    penyesuaian: [
+      { minggu:2, ket:"Tambah: kanopi carport", nilai: 28500000 },
+      { minggu:3, ket:"Kurang: pagar belakang ditiadakan", nilai: -12000000 },
+    ],
+    termin: [
+      { no:1, nama:"Pondasi selesai",                       persen:10, syarat:6,   bayarMinggu:3 },
+      { no:2, nama:"Struktur bawah & kolom lantai 1 selesai", persen:20, syarat:20,  bayarMinggu:null },
+      { no:3, nama:"Struktur atas selesai (balok & plat)",    persen:20, syarat:35,  bayarMinggu:null },
+      { no:4, nama:"Dinding & atap selesai",                  persen:20, syarat:60,  bayarMinggu:null },
+      { no:5, nama:"Finishing selesai",                       persen:25, syarat:90,  bayarMinggu:null },
+      { no:6, nama:"Serah terima (retensi)",                  persen:5,  syarat:100, bayarMinggu:null },
+    ],
     riwayat: {
       1: {
-        periode: "12 – 18 Agustus 2026", rencanaKumulatif: 1.23, realisasiKumulatif: 3.10,
+        periode: "12 – 18 Agustus 2026", rencanaKumulatif: 1.23, realisasiKumulatif: 1.27,
         fotoDriveLink: "https://drive.google.com/drive/folders/contoh-folder-miral6-minggu1",
         fotoThumbnails: ["https://picsum.photos/seed/miral6-w1-1/300/225","https://picsum.photos/seed/miral6-w1-2/300/225"],
         aktivitasMingguIni: ["Pengukuran lahan & pemasangan bouplank", "Mobilisasi gudang & bedeng"],
@@ -204,7 +251,7 @@ const DATA = {
         ]
       },
       2: {
-        periode: "19 – 25 Agustus 2026", rencanaKumulatif: 2.83, realisasiKumulatif: 5.50,
+        periode: "19 – 25 Agustus 2026", rencanaKumulatif: 2.83, realisasiKumulatif: 4.15,
         fotoDriveLink: "https://drive.google.com/drive/folders/contoh-folder-miral6-minggu2",
         fotoThumbnails: ["https://picsum.photos/seed/miral6-w2-1/300/225","https://picsum.photos/seed/miral6-w2-2/300/225","https://picsum.photos/seed/miral6-w2-3/300/225"],
         aktivitasMingguIni: ["Galian tanah pondasi", "Mulai pasang pondasi batu kali"],
@@ -217,7 +264,7 @@ const DATA = {
         ]
       },
       3: {
-        periode: "26 Agustus – 2 September 2026", rencanaKumulatif: 4.76, realisasiKumulatif: 20.35,
+        periode: "26 Agustus – 2 September 2026", rencanaKumulatif: 4.76, realisasiKumulatif: 13.68,
         fotoDriveLink: "https://drive.google.com/drive/folders/contoh-folder-miral6-minggu3",
         fotoThumbnails: [
           "https://picsum.photos/seed/miral6-1/300/225","https://picsum.photos/seed/miral6-2/300/225",
@@ -234,13 +281,13 @@ const DATA = {
           { nama:"Pekerjaan & urugan", bobot:0.72, lalu:0.49, ini:0.24, items:[] },
           { nama:"Pekerjaan pondasi beton", bobot:4.72, lalu:2.39, ini:2.22, items:[] },
           { nama:"Pekerjaan beton sloof", bobot:3.08, lalu:0.00, ini:2.80, items:[] },
-          { nama:"Pekerjaan beton kolom", bobot:5.79, lalu:0.77, ini:1.08, items:[
+          { nama:"Pekerjaan beton kolom", bobot:5.79, lalu:0.00, ini:1.08, items:[
             { nama:"Beton kolom K1 20/40", lokasi:"Lantai dasar", volume:0.56, satuan:"m3", bobotItem:0.63, progres:49 },
             { nama:"Beton kolom K2 15/30", lokasi:"Lantai dasar", volume:1.73, satuan:"m3", bobotItem:1.93, progres:55 },
             { nama:"Beton kolom K3 15/25", lokasi:"Lantai 2", volume:0.52, satuan:"m3", bobotItem:0.57, progres:0 },
             { nama:"Beton kolom K4 15/20", lokasi:"Lantai 2", volume:0.90, satuan:"m3", bobotItem:0.99, progres:0 },
           ]},
-          { nama:"Pekerjaan beton non struktur", bobot:2.06, lalu:0.59, ini:0.64, items:[] },
+          { nama:"Pekerjaan beton non struktur", bobot:2.06, lalu:0.00, ini:0.64, items:[] },
           { nama:"Pekerjaan dinding", bobot:19.37, lalu:0.00, ini:1.51, items:[
             { nama:"Pasangan dinding bata ringan", lokasi:"Lantai 1", volume:123.56, satuan:"m2", bobotItem:3.02, progres:50 },
             { nama:"Plesteran dinding", lokasi:"Lantai 1", volume:209.23, satuan:"m2", bobotItem:3.19, progres:0 },
@@ -254,6 +301,8 @@ const DATA = {
           { nama:"Pekerjaan pengecatan", bobot:5.39, lalu:0.00, ini:0.00, items:[] },
           { nama:"Pekerjaan instalasi elektrikal", bobot:3.38, lalu:0.00, ini:0.00, items:[] },
           { nama:"Pekerjaan +/- item lain-lain", bobot:1.51, lalu:0.00, ini:0.00, items:[] },
+          { nama:"Pekerjaan balok & plat lantai", bobot:11.85, lalu:0.00, ini:0.00, items:[] },
+          { nama:"Pekerjaan finishing akhir & serah terima", bobot:3.99, lalu:0.00, ini:0.00, items:[] },
         ]
       }
     }
@@ -261,6 +310,14 @@ const DATA = {
   "D12-GWISATA-P9M4": {
     nama: "Grand Wisata — Blok D12",
     mingguTerbaru: 1,
+    kontrakAwal: 480000000,
+    penyesuaian: [],
+    termin: [
+      { no:1, nama:"Uang muka",             persen:30, syarat:0,   bayarMinggu:1 },
+      { no:2, nama:"Pondasi selesai",       persen:30, syarat:12,  bayarMinggu:null },
+      { no:3, nama:"Struktur selesai",      persen:25, syarat:40,  bayarMinggu:null },
+      { no:4, nama:"Serah terima (retensi)",persen:15, syarat:100, bayarMinggu:null },
+    ],
     riwayat: {
       1: {
         periode: "8 – 14 September 2026", rencanaKumulatif: 1.10, realisasiKumulatif: 0.95,
@@ -297,6 +354,79 @@ function cekKode(){
 }
 
 function fmt(n){ return n.toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+function rp(n){ return (n<0?'-':'') + 'Rp ' + Math.abs(Math.round(n)).toLocaleString('id-ID'); }
+function rpS(n){
+  const a = Math.abs(n), s = n<0?'-':'';
+  if(a>=1e9) return s+'Rp '+(a/1e9).toLocaleString('id-ID',{maximumFractionDigits:2})+' M';
+  if(a>=1e6) return s+'Rp '+(a/1e6).toLocaleString('id-ID',{maximumFractionDigits:1})+' jt';
+  return rp(n);
+}
+
+// Hitung nilai & pembayaran untuk minggu ke-wk. Dasar: persen realisasi x nilai kontrak berlaku (harga jual).
+function hitungKeuangan(p, wk){
+  const real = p.riwayat[wk].realisasiKumulatif;
+  const adj = p.penyesuaian.filter(a => a.minggu <= wk);
+  const kontrak = p.kontrakAwal + adj.reduce((a,x)=>a+x.nilai, 0);
+  const paid = p.termin.filter(t => t.bayarMinggu!=null && t.bayarMinggu<=wk);
+  const terbayarPct = paid.reduce((a,t)=>a+t.persen, 0);
+  const terealisasi = real/100*kontrak;
+  const terbayar = terbayarPct/100*kontrak;
+  const selisih = terealisasi - terbayar;
+  const tol = 0.02*kontrak;   // toleransi 2% dari nilai kontrak dianggap "sejalan"
+  const status = Math.abs(selisih) <= tol ? 'ok' : (selisih > 0 ? 'lead' : 'adv');
+  return { real, adj, kontrak, paid, terbayarPct, terealisasi, terbayar, selisih, status };
+}
+
+function renderKeuangan(p, wk){
+  const f = hitungKeuangan(p, wk);
+  const adjNet = f.kontrak - p.kontrakAwal;
+  document.getElementById('finCards').innerHTML = `
+    <div class="card"><div class="label">Nilai kontrak</div><div class="value" style="font-size:17px;">${rp(f.kontrak)}</div>
+      <div class="hint">${adjNet!==0 ? 'Awal '+rpS(p.kontrakAwal)+(adjNet>0?' + ':' − ')+rpS(Math.abs(adjNet))+' penyesuaian' : 'Sesuai kontrak awal'}</div></div>
+    <div class="card"><div class="label">Pekerjaan terealisasi</div><div class="value" style="font-size:17px;">${rp(f.terealisasi)}</div>
+      <div class="hint">${fmt(f.real)}% dari nilai kontrak</div></div>
+    <div class="card"><div class="label">Pembayaran masuk</div><div class="value" style="font-size:17px;">${rp(f.terbayar)}</div>
+      <div class="hint">${f.paid.length} dari ${p.termin.length} termin · ${fmt(f.terbayarPct)}%</div></div>
+    <div class="card"><div class="label">Selisih</div><div class="value ${f.selisih>=0?'pos':'neg'}" style="font-size:17px;">${f.selisih>=0?'+':''}${rp(f.selisih)}</div>
+      <div class="hint">pekerjaan − pembayaran</div></div>`;
+
+  const teks = {
+    ok:   ['sel-ok',   'Pekerjaan sejalan dengan pembayaran.',
+           'Nilai pekerjaan yang sudah dikerjakan dan pembayaran yang masuk berada dalam selisih wajar (di bawah 2% nilai kontrak).'],
+    lead: ['sel-lead', 'Pekerjaan lebih dulu dari pembayaran.',
+           `Pekerjaan senilai <b>${rp(f.terealisasi)}</b> sudah terealisasi, sedangkan pembayaran yang masuk <b>${rp(f.terbayar)}</b>. Pekerjaan berjalan lebih dulu <b>${rp(f.selisih)}</b> dari termin yang dibayarkan; termin berikutnya mengikuti milestone di bawah.`],
+    adv:  ['sel-adv',  'Pembayaran lebih dulu dari pekerjaan.',
+           `Pembayaran masuk <b>${rp(f.terbayar)}</b>, sedangkan pekerjaan terealisasi <b>${rp(f.terealisasi)}</b>. Pembayaran berada <b>${rp(-f.selisih)}</b> di depan pekerjaan (umumnya karena uang muka atau termin awal).`]
+  }[f.status];
+  document.getElementById('selisihBox').innerHTML = `<div class="fin-box ${teks[0]}"><b>${teks[1]}</b><br>${teks[2]}</div>`;
+
+  document.getElementById('penyesuaianList').innerHTML = f.adj.map(a =>
+    `<li>Minggu ke-${a.minggu} · ${a.ket} · <b>${a.nilai>=0?'+':'−'}${rp(Math.abs(a.nilai))}</b></li>`).join('');
+
+  let nextShown = false;
+  document.getElementById('terminBox').innerHTML = p.termin.map(t => {
+    const nominal = t.persen/100*f.kontrak;
+    const dibayar = t.bayarMinggu!=null && t.bayarMinggu<=wk;
+    const siap = !dibayar && f.real >= t.syarat;
+    const pill = dibayar ? `<span class="pill st-paid">Sudah dibayar · minggu ${t.bayarMinggu}</span>`
+               : siap   ? `<span class="pill st-ready">Syarat tercapai</span>`
+               :          `<span class="pill st-wait">Belum jatuh tempo</span>`;
+    let bar = '';
+    if(!dibayar && !siap && !nextShown){
+      nextShown = true;
+      const pct = Math.min(100, f.real / t.syarat * 100);
+      bar = `<div class="tbar"><div style="width:${pct}%;"></div></div>
+             <div class="tbar-l">Progres ${fmt(f.real)}% dari syarat ${t.syarat}% · termin berikutnya</div>`;
+    }
+    return `<div class="termin-row">
+      <div class="tn">${t.no}</div>
+      <div><div class="tt">${t.nama}</div>
+        <div class="td">${t.persen}% · ${rp(nominal)} · syarat progres ${t.syarat}%</div>${bar}</div>
+      <div>${pill}</div></div>`;
+  }).join('');
+  return f;
+}
 
 function pilihMinggu(val){
   selectedMingguKlien = parseInt(val);
@@ -341,6 +471,7 @@ function renderMingguKlien(){
   devEl.className = 'value ' + (dev>=0?'pos':'neg');
   document.getElementById('cDeviasiHint').textContent = dev>=0 ? 'Lebih cepat dari rencana' : 'Tertinggal dari rencana';
 
+  const fin = renderKeuangan(p, selectedMingguKlien);
   const totBobot = w.kategori.reduce((a,k)=>a+k.bobot,0);
   const totLalu = w.kategori.reduce((a,k)=>a+k.lalu,0);
   const totIni = w.kategori.reduce((a,k)=>a+k.ini,0);
@@ -349,7 +480,7 @@ function renderMingguKlien(){
     return `
     <div>
       <div class="kat-row ${hasItems?'clickable':''}" ${hasItems?`onclick="toggleKatRow(${ki})"`:''} id="katrow-${ki}">
-        <div>${k.nama}</div><div>${fmt(k.bobot)}</div><div>${fmt(k.lalu)}</div><div>${fmt(k.ini)}</div><div>${fmt(k.lalu+k.ini)}</div>
+        <div>${k.nama}<div class="kat-item-loc" style="text-align:left;">Nilai ${rpS(k.bobot/100*fin.kontrak)} · terealisasi ${rpS((k.lalu+k.ini)/100*fin.kontrak)}</div></div><div>${fmt(k.bobot)}</div><div>${fmt(k.lalu)}</div><div>${fmt(k.ini)}</div><div>${fmt(k.lalu+k.ini)}</div>
         <div class="chev">${hasItems?'&#9656;':''}</div>
       </div>
       <div class="kat-items" id="katitems-${ki}">
@@ -386,11 +517,14 @@ function renderMingguKlien(){
     if(wk > p.mingguTerbaru) return null;
     return p.riwayat[wk] ? p.riwayat[wk].realisasiKumulatif : null;
   });
+  const bayar = weeks.map(wk => wk > p.mingguTerbaru ? null :
+    p.termin.filter(t => t.bayarMinggu!=null && t.bayarMinggu<=wk).reduce((a,t)=>a+t.persen, 0));
   if(chartInstance) chartInstance.destroy();
   chartInstance = new Chart(document.getElementById('klienChart'), {
     type:'line',
     data:{ labels:weeks, datasets:[
       { label:'Rencana', data:rencana, borderColor:'#2a78d6', borderWidth:2, pointRadius:0, tension:.35, spanGaps:true },
+      { label:'Pembayaran masuk', data:bayar, borderColor:'#C58A1E', borderWidth:2, borderDash:[5,4], pointRadius:0, stepped:true, spanGaps:false },
       { label:'Realisasi', data:realisasi, borderColor:'#B23A2E', backgroundColor:'#B23A2E', borderWidth:2,
         pointRadius:(c)=>c.dataIndex===selectedMingguKlien?7:3,
         pointBackgroundColor:(c)=>c.dataIndex===selectedMingguKlien?'#7A231C':'#B23A2E', spanGaps:false }
@@ -427,6 +561,12 @@ if(kodeDariUrl){
         text:'Klik <b>Lihat progress</b>.' },
       { id:'cards',kind:'info',  target:'.cards', show:dash,
         text:'Ringkasan: minggu berjalan, rencana vs realisasi, dan <b>deviasi</b>.' },
+      { id:'fin',  kind:'info',  target:'#finCards', show:dash,
+        text:'<b>Nilai pekerjaan vs pembayaran</b>: berapa yang sudah dikerjakan (Rp) dan berapa termin yang sudah masuk.' },
+      { id:'sel',  kind:'info',  target:'#selisihBox', show:dash,
+        text:'Penjelasan otomatis: pekerjaan <b>sejalan</b>, <b>lebih dulu</b>, atau <b>di belakang</b> pembayaran.' },
+      { id:'trm',  kind:'info',  target:'#terminBox', show:dash,
+        text:'Termin per <b>milestone</b>. Klien tahu termin berikutnya jatuh tempo di progres berapa.' },
       { id:'week', kind:'info',  target:'#mingguPilih', show:dash,
         text:'Klien bisa pilih minggu sebelumnya untuk melihat riwayat.' },
       { id:'curve',kind:'info',  target:'#klienChart', show:dash,

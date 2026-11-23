@@ -235,6 +235,33 @@
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
   .empty-hint{font-size:12px; color:var(--ink-faint); padding:8px 0 14px; font-style:italic;}
   .dummy-flag{display:inline-block; font-family:var(--mono); font-size:10px; color:var(--accent-dark); background:var(--accent-fill); padding:2px 7px; border-radius:4px; margin-left:8px;}
+
+  /* ---------- Peran (Owner / Produksi) ---------- */
+  body.role-produksi .owner-only{display:none !important;}
+  .role-chip{font-family:var(--mono); font-size:10px; padding:2px 8px; border-radius:20px; background:var(--accent-fill); color:var(--accent-dark); margin-left:6px; text-transform:uppercase; letter-spacing:.04em;}
+  .role-chip.prod{background:#E3EEFB; color:#1D4C8C;}
+  .edit-row.pr{grid-template-columns:1.4fr 1fr 70px 60px 70px 105px 105px 60px;}
+  body.role-produksi .edit-row.pr{grid-template-columns:1.4fr 1fr 70px 60px 70px 105px 60px;}
+  .edit-scroll{overflow-x:auto;}
+  .edit-scroll > *{min-width:760px;}
+
+  /* ---------- Keuangan ---------- */
+  .fin-cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px; margin:18px 0;}
+  .fin-cards .card .value{font-size:16px;}
+  .fin-cards .hint{font-size:11px; color:var(--ink-faint); margin-top:4px;}
+  .fin-box{border-radius:9px; padding:12px 14px; font-size:13px; line-height:1.55; margin:14px 0; border:1px solid;}
+  .fin-box.sel-ok{background:var(--green-fill); border-color:#BCD9C2; color:#2C5C3B;}
+  .fin-box.sel-lead{background:#E3EEFB; border-color:#B7D0F1; color:#1D4C8C;}
+  .fin-box.sel-adv{background:#FBF0DC; border-color:#EBD4A4; color:#7A5410;}
+  table.fin{width:100%; border-collapse:collapse; font-size:13px;}
+  table.fin th{text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); font-weight:600; padding:8px 8px; border-bottom:1px solid var(--line-strong);}
+  table.fin td{padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  table.fin td.num, table.fin th.num{text-align:right; font-family:var(--mono); font-size:12.5px;}
+  .pill{font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; white-space:nowrap;}
+  .pill.st-paid{background:var(--green-fill); color:#2C5C3B;}
+  .pill.st-ready{background:#FBF0DC; color:#7A5410;}
+  .pill.st-wait{background:var(--paper); color:var(--ink-faint); border:1px solid var(--line);}
+  .fin-warn{font-size:12px; color:var(--accent-dark); background:var(--accent-fill); border-radius:6px; padding:6px 10px; margin-top:10px;}
 </style>
 </head>
 <body>
@@ -310,7 +337,8 @@
       <button data-view="rab" onclick="switchTab('rab')">Setup RAB</button>
       <button data-view="input" onclick="switchTab('input')">Input mingguan</button>
       <button data-view="edit" onclick="switchTab('edit')">Edit detail</button>
-      <button data-view="akses" onclick="switchTab('akses')">Akses klien</button>
+      <button data-view="keuangan" class="owner-only" onclick="switchTab('keuangan')">Keuangan &amp; termin</button>
+      <button data-view="akses" class="owner-only" onclick="switchTab('akses')">Akses klien</button>
     </nav>
     <div class="sidebar-stats">
       <div class="row"><span>Minggu</span><b id="statMinggu">—</b></div>
@@ -343,6 +371,8 @@
           <div style="position:relative; height:260px;"><canvas id="sCurveChart"></canvas></div>
         </div>
       </div>
+      <div class="fin-cards" id="nominalCards"></div>
+      <div id="nominalSelisih"></div>
       <p class="empty-hint">Basisnya sama seperti hal 2–3 &amp; 10 laporan — dihitung otomatis dari input di tab "Input mingguan".<span class="dummy-flag">data dummy</span></p>
     </section>
 
@@ -356,6 +386,8 @@
           <div class="full"><label>Nama item</label><input type="text" id="rabNama" placeholder="misal: Beton kolom K5 15/20"></div>
           <div><label>Volume rencana</label><input type="number" id="rabVolume" step="0.01" placeholder="0.00"></div>
           <div><label>Satuan</label><input type="text" id="rabSatuan" placeholder="m3 / m2 / Ls"></div>
+          <div><label>Harga satuan produksi (Rp)</label><input type="number" id="rabHargaProd" placeholder="0"></div>
+          <div class="owner-only"><label>Harga satuan jual (Rp)</label><input type="number" id="rabHargaJual" placeholder="0"></div>
           <div class="full"><label>Bobot item (%)</label><input type="number" id="rabBobot" step="0.01" placeholder="0.00"></div>
         </div>
         <div class="form-actions"><button class="primary" onclick="tambahItemRAB()">Tambah item</button></div>
@@ -408,13 +440,43 @@
     <section id="view-edit" class="view">
       <h2 class="view-title">Edit detail item</h2>
       <p class="empty-hint" style="padding-top:0;">Ubah atau hapus item yang sudah ada — buat revisi RAB di tengah jalan, bukan buat isi progress mingguan.<span class="dummy-flag">data dummy</span></p>
-      <div class="edit-row" style="font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint); background:var(--paper); border-radius:6px;">
-        <span>Nama item</span><span>Lokasi</span><span>Volume</span><span>Satuan</span><span>Bobot %</span><span></span>
+      <div class="edit-scroll">
+      <div class="edit-row pr" style="font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint); background:var(--paper); border-radius:6px;">
+        <span>Nama item</span><span>Lokasi</span><span>Volume</span><span>Satuan</span><span>Bobot %</span><span>Hrg produksi</span><span class="owner-only">Hrg jual</span><span></span>
       </div>
       <div id="editList" style="background:var(--surface); border:1px solid var(--line); border-radius:8px; border-top:none;"></div>
+      </div>
     </section>
 
-    <section id="view-akses" class="view">
+    <section id="view-keuangan" class="view owner-only">
+      <h2 class="view-title">Keuangan &amp; termin</h2>
+      <p class="empty-hint" style="padding-top:0;">Hanya Owner yang melihat tab ini. Tim Produksi tidak menerima harga jual, termin, maupun margin. Yang dilihat klien dari data ini: nilai per kategori, termin, dan selisih pekerjaan vs pembayaran.<span class="dummy-flag">data dummy</span></p>
+      <div id="finSummary"></div>
+
+      <div class="rab-form">
+        <h3>Penyesuaian nilai kontrak (tambah / kurang pekerjaan)</h3>
+        <div id="penyesuaianList"></div>
+        <div class="form-grid" style="margin-top:12px;">
+          <div class="full"><label>Keterangan</label><input type="text" id="pnKet" placeholder="misal: Tambah kanopi carport"></div>
+          <div><label>Nilai (Rp, minus untuk pengurangan)</label><input type="number" id="pnNilai" placeholder="28500000"></div>
+          <div><label>Mulai berlaku minggu ke-</label><input type="number" id="pnMinggu" min="1" placeholder="1"></div>
+        </div>
+        <div class="form-actions"><button class="primary" onclick="tambahPenyesuaian()">Tambah penyesuaian</button></div>
+      </div>
+
+      <div class="rab-form">
+        <h3>Termin pembayaran (berbasis milestone)</h3>
+        <div id="terminList"></div>
+        <div class="form-grid" style="margin-top:12px;">
+          <div class="full"><label>Nama milestone</label><input type="text" id="tmNama" placeholder="misal: Struktur atas selesai"></div>
+          <div><label>Persen dari kontrak (%)</label><input type="number" id="tmPersen" step="0.5" placeholder="20"></div>
+          <div><label>Syarat progres (%)</label><input type="number" id="tmSyarat" step="0.5" placeholder="35"></div>
+        </div>
+        <div class="form-actions"><button class="primary" onclick="tambahTermin()">Tambah termin</button></div>
+      </div>
+    </section>
+
+    <section id="view-akses" class="view owner-only">
       <h2 class="view-title">Akses klien</h2>
       <div class="akses-grid">
         <div class="akses-panel">
@@ -459,9 +521,22 @@
 const DATA = {
   c40: {
     nama: "Miral 6 Residence — Blok C40",
-    minggu: 3, rencanaKumulatif: 4.76, realisasiKumulatif: 20.35,
+    minggu: 3, rencanaKumulatif: 4.76, realisasiKumulatif: 13.68,
     mulaiTanggal: "2026-08-26",
     akses: { kode: "C40-MIRAL6-X7K2", aktif: true },
+    kontrakAwal: 1250000000, anggaranProduksi: 1010000000,
+    penyesuaian: [
+      { minggu:2, ket:"Tambah: kanopi carport", nilai: 28500000 },
+      { minggu:3, ket:"Kurang: pagar belakang ditiadakan", nilai: -12000000 },
+    ],
+    termin: [
+      { nama:"Pondasi selesai",                         persen:10, syarat:6,   bayarMinggu:3 },
+      { nama:"Struktur bawah & kolom lantai 1 selesai", persen:20, syarat:20,  bayarMinggu:null },
+      { nama:"Struktur atas selesai (balok & plat)",    persen:20, syarat:35,  bayarMinggu:null },
+      { nama:"Dinding & atap selesai",                  persen:20, syarat:60,  bayarMinggu:null },
+      { nama:"Finishing selesai",                       persen:25, syarat:90,  bayarMinggu:null },
+      { nama:"Serah terima (retensi)",                  persen:5,  syarat:100, bayarMinggu:null },
+    ],
     kategori: [
       { kode:"K01", nama:"Pekerjaan pendahuluan", bobot:1.55, items:[
         { nama:"Air kerja — pembuatan sumur bor", lokasi:"", volRencana:1, satuan:"Ls", bobotItem:1.20, progressMingguIni:0 },
@@ -490,6 +565,14 @@ const DATA = {
     minggu: 1, rencanaKumulatif: 1.10, realisasiKumulatif: 0.95,
     mulaiTanggal: "2026-09-08",
     akses: { kode: "D12-GWISATA-P9M4", aktif: false },
+    kontrakAwal: 480000000, anggaranProduksi: 392000000,
+    penyesuaian: [],
+    termin: [
+      { nama:"Uang muka",              persen:30, syarat:0,   bayarMinggu:1 },
+      { nama:"Pondasi selesai",        persen:30, syarat:12,  bayarMinggu:null },
+      { nama:"Struktur selesai",       persen:25, syarat:40,  bayarMinggu:null },
+      { nama:"Serah terima (retensi)", persen:15, syarat:100, bayarMinggu:null },
+    ],
     kategori: [
       { kode:"K01", nama:"Pekerjaan pendahuluan", bobot:1.40, items:[
         { nama:"Pengukuran lahan & bouplank", lokasi:"", volRencana:40, satuan:"m1", bobotItem:0.30, progressMingguIni:0 },
@@ -501,17 +584,58 @@ const DATA = {
   }
 };
 
+// Harga satuan dummy (produksi vs jual). Item baru diisi lewat form Setup RAB / Edit detail.
+const HARGA_DUMMY = {
+  "Air kerja — pembuatan sumur bor":[9500000,12500000], "Pembersihan ringan area kerja":[14000,18000],
+  "Beton kolom K1 20/40":[5200000,6500000], "Beton kolom K2 15/30":[5100000,6400000],
+  "Beton kolom K3 15/25":[5000000,6300000], "Beton kolom K4 15/20":[4900000,6200000],
+  "Kisi-kisi besi hollow 4/6 finish cat":[620000,780000], "Lantai utama granite tile 60x60 glossy":[480000,610000],
+  "Pasangan dinding bata ringan":[165000,210000], "Plesteran dinding":[78000,98000],
+  "Pengukuran lahan & bouplank":[45000,60000], "Pondasi batu kali":[1450000,1850000]
+};
+Object.values(DATA).forEach(p => p.kategori.forEach(k => k.items.forEach(it => {
+  const h = HARGA_DUMMY[it.nama] || [0,0];
+  if(it.hargaProd == null) it.hargaProd = h[0];
+  if(it.hargaJual == null) it.hargaJual = h[1];
+})));
+
 let current = null;
 let activeKategoriKode = null;
 let sCurveChartInstance = null;
 let loggedInAdmin = null;
+let loggedInRole = null;   // 'owner' | 'produksi'
+const isOwner = () => loggedInRole === 'owner';
 
-// Dummy — di produksi ini dicek server-side via Apps Script, bukan di JS browser
+// Dummy — di produksi ini dicek server-side via Apps Script, bukan di JS browser.
+// Peran juga ditentukan server: untuk 'produksi', server TIDAK mengirim harga jual, termin, maupun margin.
+// (Prototype ini hanya tidak menampilkannya; jangan anggap aman sebelum disaring di Apps Script.)
 const PASSWORD_GLOBAL = "demo123";
 const ADMIN_PINS = {
-  "1234": "Admin Demo — Owner",
-  "5678": "Pengawas Demo — Pengawas Lapangan"
+  "1234": { nama:"Admin Demo — Owner",       role:"owner" },
+  "5678": { nama:"Pengawas Demo — Produksi", role:"produksi" }
 };
+
+// ----- Keuangan: persen realisasi x nilai kontrak berlaku (harga jual) -----
+function rp(n){ return (n<0?'-':'') + 'Rp ' + Math.abs(Math.round(n)).toLocaleString('id-ID'); }
+function hitungKeuangan(p){
+  const kontrak = p.kontrakAwal + p.penyesuaian.reduce((a,x)=>a+x.nilai, 0);
+  const paid = p.termin.filter(t => t.bayarMinggu!=null && t.bayarMinggu<=p.minggu);
+  const terbayarPct = paid.reduce((a,t)=>a+t.persen, 0);
+  const terealisasi = p.realisasiKumulatif/100*kontrak;
+  const terbayar = terbayarPct/100*kontrak;
+  const selisih = terealisasi - terbayar;
+  const status = Math.abs(selisih) <= 0.02*kontrak ? 'ok' : (selisih>0 ? 'lead' : 'adv');
+  return { kontrak, paid, terbayarPct, terealisasi, terbayar, selisih, status,
+           margin: kontrak - p.anggaranProduksi, marginPct: kontrak ? (kontrak - p.anggaranProduksi)/kontrak*100 : 0 };
+}
+function selisihBoxHtml(f){
+  const t = {
+    ok:   ['sel-ok',   'Pekerjaan sejalan dengan pembayaran.', 'Selisih di bawah 2% nilai kontrak.'],
+    lead: ['sel-lead', 'Pekerjaan lebih dulu dari pembayaran.', `Pekerjaan berjalan ${rp(f.selisih)} di depan termin yang sudah dibayar.`],
+    adv:  ['sel-adv',  'Pembayaran lebih dulu dari pekerjaan.', `Pembayaran ${rp(-f.selisih)} di depan pekerjaan (umumnya uang muka / termin awal).`]
+  }[f.status];
+  return `<div class="fin-box ${t[0]}"><b>${t[1]}</b> ${t[2]} <span style="opacity:.7;">(ini yang dilihat klien)</span></div>`;
+}
 
 function cekPasswordGlobal(){
   const val = document.getElementById('passwordGlobal').value;
@@ -533,7 +657,9 @@ function cekPin(){
     return;
   }
   err.textContent = '';
-  loggedInAdmin = ADMIN_PINS[val];
+  loggedInAdmin = ADMIN_PINS[val].nama;
+  loggedInRole = ADMIN_PINS[val].role;
+  document.body.classList.toggle('role-produksi', loggedInRole !== 'owner');
   document.getElementById('pinGateScreen').style.display = 'none';
   document.getElementById('landingScreen').style.display = 'block';
   document.getElementById('loggedAsName').textContent = loggedInAdmin;
@@ -542,6 +668,15 @@ function cekPin(){
 
 function logoutAdmin(){
   loggedInAdmin = null;
+  loggedInRole = null;
+  document.body.classList.remove('role-produksi');
+  // Buang semua angka sensitif dari DOM, jangan cuma disembunyikan, supaya tidak bocor ke peran berikutnya.
+  ['finSummary','penyesuaianList','terminList','nominalCards','nominalSelisih','editList','rabPreview'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.innerHTML = '';
+  });
+  document.getElementById('klienKode').textContent = '—';
+  document.getElementById('klienLink').textContent = '—';
+  document.getElementById('qrImage').removeAttribute('src');
   document.getElementById('pinAdmin').value = '';
   document.getElementById('passwordGlobal').value = '';
   document.getElementById('landingScreen').style.display = 'none';
@@ -638,6 +773,7 @@ function buatProyekBaru(){
   const key = 'proyek_' + Date.now();
   DATA[key] = { nama, minggu:0, rencanaKumulatif:0, realisasiKumulatif:0, mulaiTanggal: tanggal,
     akses:{ kode: generateKodeString(nama), aktif:true },
+    kontrakAwal:0, anggaranProduksi:0, penyesuaian:[], termin:[],
     kategori:[{ kode:"K01", nama:"Pekerjaan pendahuluan", bobot:0, items:[] }] };
   document.getElementById('newProjectNama').value = '';
   document.getElementById('newProjectTanggal').value = '';
@@ -647,6 +783,7 @@ function buatProyekBaru(){
 }
 
 function switchTab(view){
+  if(!isOwner() && (view==='keuangan' || view==='akses')) return;   // tab khusus Owner
   document.querySelectorAll('.sidebar nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+view).classList.add('active');
@@ -660,7 +797,114 @@ function renderAll(){
   renderWeekbar();
   renderEdit();
   renderAkses();
+  renderKeuangan();
   setTimeout(renderChart, 30);
+}
+
+// ---------- Ringkasan nominal (beda per peran) ----------
+function renderNominal(){
+  const p = DATA[current];
+  const f = hitungKeuangan(p);
+  const box = document.getElementById('nominalCards');
+  const sel = document.getElementById('nominalSelisih');
+  const card = (l, v, hint, cls) => `<div class="card"><div class="label">${l}</div><div class="value ${cls||''}">${v}</div>${hint?`<div class="hint">${hint}</div>`:''}</div>`;
+  if(isOwner()){
+    box.innerHTML =
+      card('Nilai kontrak (jual)', rp(f.kontrak), 'termasuk penyesuaian') +
+      card('Pekerjaan terealisasi', rp(f.terealisasi), fmt(p.realisasiKumulatif)+'% dari kontrak') +
+      card('Pembayaran masuk', rp(f.terbayar), f.paid.length+' dari '+p.termin.length+' termin') +
+      card('Selisih (pekerjaan − bayar)', (f.selisih>=0?'+':'')+rp(f.selisih), '', f.selisih>=0?'pos':'neg') +
+      card('Anggaran produksi', rp(p.anggaranProduksi), 'harga produksi') +
+      card('Margin rencana', rp(f.margin), fmt(f.marginPct)+'% dari kontrak');
+    sel.innerHTML = selisihBoxHtml(f);
+  } else {
+    // Peran Produksi: hanya angka produksi. Harga jual, termin, margin tidak dikirim/ditampilkan.
+    const real = p.realisasiKumulatif/100*p.anggaranProduksi;
+    box.innerHTML =
+      card('Anggaran produksi', rp(p.anggaranProduksi), 'harga produksi') +
+      card('Nilai produksi terealisasi', rp(real), fmt(p.realisasiKumulatif)+'% dari anggaran') +
+      card('Sisa anggaran', rp(p.anggaranProduksi - real), '');
+    sel.innerHTML = '';
+  }
+}
+
+// ---------- Tab Keuangan & termin (Owner) ----------
+function renderKeuangan(){
+  if(!isOwner() || !current) return;
+  const p = DATA[current];
+  const f = hitungKeuangan(p);
+  const adjNet = f.kontrak - p.kontrakAwal;
+  document.getElementById('finSummary').innerHTML = `
+    <div class="fin-cards" style="margin-top:0;">
+      <div class="card"><div class="label">Kontrak awal</div><div class="value">${rp(p.kontrakAwal)}</div></div>
+      <div class="card"><div class="label">Penyesuaian</div><div class="value ${adjNet>=0?'pos':'neg'}">${adjNet>=0?'+':''}${rp(adjNet)}</div></div>
+      <div class="card"><div class="label">Kontrak berlaku</div><div class="value">${rp(f.kontrak)}</div></div>
+      <div class="card"><div class="label">Anggaran produksi</div><div class="value">${rp(p.anggaranProduksi)}</div></div>
+      <div class="card"><div class="label">Margin rencana</div><div class="value ${f.margin>=0?'pos':'neg'}">${rp(f.margin)}</div><div class="hint">${fmt(f.marginPct)}%</div></div>
+    </div>${selisihBoxHtml(f)}`;
+
+  document.getElementById('penyesuaianList').innerHTML = p.penyesuaian.length ? `
+    <table class="fin"><thead><tr><th>Minggu</th><th>Keterangan</th><th class="num">Nilai</th><th></th></tr></thead><tbody>
+    ${p.penyesuaian.map((a,i)=>`<tr><td>${a.minggu}</td><td>${a.ket}</td><td class="num">${a.nilai>=0?'+':''}${rp(a.nilai)}</td>
+      <td style="text-align:right;"><button class="danger" onclick="hapusPenyesuaian(${i})">Hapus</button></td></tr>`).join('')}
+    </tbody></table>` : '<div class="empty-hint" style="padding:0;">Belum ada penyesuaian. Kontrak berlaku = kontrak awal.</div>';
+
+  const totalPct = p.termin.reduce((a,t)=>a+t.persen,0);
+  document.getElementById('terminList').innerHTML = p.termin.length ? `
+    <table class="fin"><thead><tr><th>#</th><th>Milestone</th><th class="num">%</th><th class="num">Nominal</th><th class="num">Syarat progres</th><th>Status</th><th></th></tr></thead><tbody>
+    ${p.termin.map((t,i)=>{
+      const dibayar = t.bayarMinggu!=null;
+      const siap = !dibayar && p.realisasiKumulatif >= t.syarat;
+      const pill = dibayar ? `<span class="pill st-paid">Dibayar · minggu ${t.bayarMinggu}</span>`
+                 : siap ? `<span class="pill st-ready">Siap ditagih</span>` : `<span class="pill st-wait">Belum jatuh tempo</span>`;
+      return `<tr><td>${i+1}</td><td>${t.nama}</td><td class="num">${t.persen}%</td><td class="num">${rp(t.persen/100*f.kontrak)}</td>
+        <td class="num">${t.syarat}%</td><td>${pill}</td>
+        <td style="text-align:right; white-space:nowrap;">
+          <button class="ghost" style="padding:5px 9px; font-size:12px;" onclick="toggleBayar(${i})">${dibayar?'Batalkan':'Tandai dibayar'}</button>
+          <button class="danger" onclick="hapusTermin(${i})">Hapus</button></td></tr>`;
+    }).join('')}
+    </tbody></table>
+    ${Math.round(totalPct*100)!==10000 ? `<div class="fin-warn">Total termin ${fmt(totalPct)}% — seharusnya 100% dari nilai kontrak.</div>` : ''}`
+    : '<div class="empty-hint" style="padding:0;">Belum ada termin.</div>';
+}
+
+function tambahPenyesuaian(){
+  const p = DATA[current];
+  const ket = document.getElementById('pnKet').value.trim();
+  const nilai = parseFloat(document.getElementById('pnNilai').value);
+  const minggu = parseInt(document.getElementById('pnMinggu').value) || Math.max(p.minggu,1);
+  if(!ket || isNaN(nilai)){ showToast('Isi keterangan dan nilai dulu'); return; }
+  p.penyesuaian.push({ minggu, ket, nilai });
+  ['pnKet','pnNilai','pnMinggu'].forEach(id=>document.getElementById(id).value='');
+  renderKeuangan(); renderNominal();
+  showToast('Penyesuaian kontrak ditambahkan — dashboard klien ikut berubah');
+}
+function hapusPenyesuaian(i){
+  DATA[current].penyesuaian.splice(i,1);
+  renderKeuangan(); renderNominal();
+}
+function tambahTermin(){
+  const p = DATA[current];
+  const nama = document.getElementById('tmNama').value.trim();
+  const persen = parseFloat(document.getElementById('tmPersen').value);
+  const syarat = parseFloat(document.getElementById('tmSyarat').value);
+  if(!nama || isNaN(persen) || isNaN(syarat)){ showToast('Isi nama, persen, dan syarat progres dulu'); return; }
+  p.termin.push({ nama, persen, syarat, bayarMinggu:null });
+  p.termin.sort((a,b)=>a.syarat-b.syarat);
+  ['tmNama','tmPersen','tmSyarat'].forEach(id=>document.getElementById(id).value='');
+  renderKeuangan(); renderNominal();
+}
+function toggleBayar(i){
+  const t = DATA[current].termin[i];
+  t.bayarMinggu = t.bayarMinggu==null ? Math.max(DATA[current].minggu,1) : null;
+  renderKeuangan(); renderNominal();
+  showToast(t.bayarMinggu==null ? 'Status bayar dibatalkan' : 'Termin ditandai dibayar');
+}
+function hapusTermin(i){
+  const t = DATA[current].termin[i];
+  if(!confirm(`Hapus termin "${t.nama}"?`)) return;
+  DATA[current].termin.splice(i,1);
+  renderKeuangan(); renderNominal();
 }
 
 function renderRingkasan(){
@@ -675,6 +919,7 @@ function renderRingkasan(){
   document.getElementById('statMinggu').textContent = p.minggu;
   document.getElementById('statRealisasi').textContent = fmt(p.realisasiKumulatif)+'%';
   document.getElementById('statDeviasi').textContent = (dev>=0?'+':'')+fmt(dev)+'%';
+  renderNominal();
 }
 
 function renderChart(){
@@ -720,10 +965,12 @@ function tambahItemRAB(){
   const volume = parseFloat(document.getElementById('rabVolume').value) || 0;
   const satuan = document.getElementById('rabSatuan').value.trim() || '-';
   const bobot = parseFloat(document.getElementById('rabBobot').value) || 0;
+  const hargaProd = parseFloat(document.getElementById('rabHargaProd').value) || 0;
+  const hargaJual = isOwner() ? (parseFloat(document.getElementById('rabHargaJual').value) || 0) : 0;
   if(!nama){ showToast('Isi nama item dulu'); return; }
   const kat = p.kategori.find(k => k.kode === kodeKategori);
-  kat.items.push({ nama, lokasi, volRencana:volume, satuan, bobotItem:bobot, progressMingguIni:0 });
-  ['rabNama','rabLokasi','rabVolume','rabSatuan','rabBobot'].forEach(id=>document.getElementById(id).value='');
+  kat.items.push({ nama, lokasi, volRencana:volume, satuan, bobotItem:bobot, hargaProd, hargaJual, progressMingguIni:0 });
+  ['rabNama','rabLokasi','rabVolume','rabSatuan','rabBobot','rabHargaProd','rabHargaJual'].forEach(id=>document.getElementById(id).value='');
   renderRabForm(); renderKatNav(); renderEdit();
   showToast(`Item "${nama}" ditambahkan ke ${kodeKategori}`);
 }
@@ -775,13 +1022,15 @@ function renderEdit(){
   p.kategori.forEach(k => {
     k.items.forEach((it, ii) => {
       const row = document.createElement('div');
-      row.className = 'edit-row';
+      row.className = 'edit-row pr';
       row.innerHTML = `
         <input type="text" value="${it.nama}" onchange="editField('${k.kode}',${ii},'nama',this.value)">
         <input type="text" value="${it.lokasi}" onchange="editField('${k.kode}',${ii},'lokasi',this.value)">
         <input type="number" step="0.01" value="${it.volRencana}" onchange="editField('${k.kode}',${ii},'volRencana',this.value)">
         <input type="text" value="${it.satuan}" onchange="editField('${k.kode}',${ii},'satuan',this.value)">
         <input type="number" step="0.01" value="${it.bobotItem}" onchange="editField('${k.kode}',${ii},'bobotItem',this.value)">
+        <input type="number" step="1000" value="${it.hargaProd||0}" onchange="editField('${k.kode}',${ii},'hargaProd',this.value)">
+        ${isOwner() ? `<input type="number" step="1000" value="${it.hargaJual||0}" onchange="editField('${k.kode}',${ii},'hargaJual',this.value)">` : ''}
         <button class="danger" onclick="hapusItem('${k.kode}',${ii})">Hapus</button>`;
       wrap.appendChild(row);
     });
@@ -791,7 +1040,7 @@ function renderEdit(){
 function editField(kodeKategori, itemIndex, field, value){
   const p = DATA[current];
   const item = p.kategori.find(k => k.kode === kodeKategori).items[itemIndex];
-  item[field] = (field==='volRencana'||field==='bobotItem') ? (parseFloat(value)||0) : value;
+  item[field] = ['volRencana','bobotItem','hargaProd','hargaJual'].includes(field) ? (parseFloat(value)||0) : value;
   renderRabForm(); renderKatNav();
   showToast('Item diperbarui');
 }
@@ -813,6 +1062,7 @@ function generateKodeString(nama){
 }
 
 function renderAkses(){
+  if(!isOwner()) return;   // kode & link klien hanya untuk Owner, jangan di-render ke DOM Produksi
   const p = DATA[current];
   document.getElementById('klienKode').textContent = p.akses.kode;
   document.getElementById('toggleTrack').classList.toggle('on', p.akses.aktif);
@@ -921,7 +1171,7 @@ function showToast(msg){
     resetWhen: function(){ return shown('passwordGateScreen'); },
     fields: [
       { selector:'#passwordGlobal', value:'demo123', label:'Password demo: <b>demo123</b>' },
-      { selector:'#pinAdmin',       value:'1234',    label:'PIN demo: <b>1234</b> (Owner) / <b>5678</b> (Pengawas)' }
+      { selector:'#pinAdmin',       value:'1234',    label:'PIN demo: <b>1234</b> (Owner, lihat semua) / <b>5678</b> (Produksi, tanpa harga jual)' }
     ],
     steps: [
       { id:'pw',  kind:'type',  target:'#passwordGlobal', show:function(){return shown('passwordGateScreen');}, doneWhen:function(){return !shown('passwordGateScreen') || document.getElementById('passwordGlobal').value==='demo123';},
@@ -944,11 +1194,13 @@ function showToast(msg){
 
       { id:'wsum', kind:'info', target:'.chart-panel', show:function(){return inWs() && view('ringkasan');},
         text:'<b>Kurva S</b>: rencana vs realisasi. Dihitung otomatis dari input mingguan.' },
-      { id:'nrab', kind:'click',target:'nav button[data-view="rab"]', show:inWs, doneWhen:function(){return view('rab')||view('input')||view('edit')||view('akses');},
+      { id:'wnom', kind:'info', target:'#nominalCards', show:function(){return inWs() && view('ringkasan');},
+        text:'Kartu nominal <b>beda per peran</b>. Owner lihat kontrak, termin, selisih, margin. Produksi cuma lihat anggaran produksi.' },
+      { id:'nrab', kind:'click',target:'nav button[data-view="rab"]', show:inWs, doneWhen:function(){return view('rab')||view('input')||view('edit')||view('keuangan')||view('akses');},
         text:'Buka tab <b>Setup RAB</b>.' },
       { id:'wrab', kind:'info', target:'#view-rab .rab-form', show:function(){return inWs() && view('rab');},
         text:'Dipakai di awal proyek: tambah item pekerjaan, volume, dan bobot.' },
-      { id:'nin',  kind:'click',target:'nav button[data-view="input"]', show:inWs, doneWhen:function(){return view('input')||view('edit')||view('akses');},
+      { id:'nin',  kind:'click',target:'nav button[data-view="input"]', show:inWs, doneWhen:function(){return view('input')||view('edit')||view('keuangan')||view('akses');},
         text:'Lanjut ke <b>Input mingguan</b>.' },
       { id:'wkat', kind:'info', target:'#katNav', show:function(){return inWs() && view('input');},
         text:'Pilih kategori pekerjaan di sini.' },
@@ -958,10 +1210,18 @@ function showToast(msg){
         text:'Foto lapangan: buka folder Drive minggu ini, upload dari HP.' },
       { id:'wsub', kind:'info', target:'.save-bar .primary', show:function(){return inWs() && view('input');},
         text:'<b>Submit</b> mengirim laporan minggu ini. Klien langsung bisa melihatnya.' },
-      { id:'ned',  kind:'click',target:'nav button[data-view="edit"]', show:inWs, doneWhen:function(){return view('edit')||view('akses');},
+      { id:'ned',  kind:'click',target:'nav button[data-view="edit"]', show:inWs, doneWhen:function(){return view('edit')||view('keuangan')||view('akses');},
         text:'Buka <b>Edit detail</b>.' },
       { id:'wed',  kind:'info', target:'#editList', show:function(){return inWs() && view('edit');},
         text:'Revisi RAB di tengah jalan: ubah atau hapus item tanpa menyentuh Sheets.' },
+      { id:'nku',  kind:'click',target:'nav button[data-view="keuangan"]', show:inWs, doneWhen:function(){return view('keuangan')||view('akses');},
+        text:'Tab <b>Keuangan &amp; termin</b> (khusus Owner).' },
+      { id:'wku',  kind:'info', target:'#finSummary', show:function(){return inWs() && view('keuangan');},
+        text:'Kontrak, penyesuaian, anggaran produksi, margin, dan <b>selisih pekerjaan vs pembayaran</b> yang dilihat klien.' },
+      { id:'wpn',  kind:'info', target:'#penyesuaianList', show:function(){return inWs() && view('keuangan');},
+        text:'<b>Penyesuaian kontrak</b> (tambah/kurang pekerjaan). Nilai kontrak dan selisih ikut menyesuaikan.' },
+      { id:'wtm',  kind:'info', target:'#terminList', show:function(){return inWs() && view('keuangan');},
+        text:'<b>Termin per milestone</b>: syarat progres, status bayar. Klik <i>Tandai dibayar</i> saat uang masuk.' },
       { id:'nak',  kind:'click',target:'nav button[data-view="akses"]', show:inWs, doneWhen:function(){return view('akses');},
         text:'Terakhir: <b>Akses klien</b>.' },
       { id:'wkode',kind:'info', target:'#klienKode', show:function(){return inWs() && view('akses');},
