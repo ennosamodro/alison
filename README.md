@@ -21,11 +21,11 @@ Login admin: **satu gerbang, username + password pribadi** (tidak ada lagi passw
 
 | Username | Password | Peran | Proyek |
 |---|---|---|---|
-| `owner` | `owner123` | Owner | semua |
-| `produksi` | `produksi123` | Produksi | semua |
-| `vendor` | `vendor123` | Produksi (vendor luar) | hanya C40 |
+| `gilang` | `gilang123` | Owner | semua |
+| `budi.mandor` | `budi123` | Produksi | semua |
+| `vendor.besi` | `vendor123` | Produksi (vendor luar) | hanya C40 |
 
-- **Owner**: lihat semua, plus tab *Keuangan & termin* dan tab *Pengguna & akses* di daftar proyek (buat akun, atur peran, centang proyek yang boleh dibuka, reset password, nonaktifkan).
+- **Owner**: lihat semua, plus tab *Keuangan & termin* dan di daftar proyek tab *Pengguna & akses* (+ Tambah pengguna, atur peran, centang proyek yang boleh dibuka, reset password, nonaktifkan) dan tab *Riwayat perubahan* (siapa mengubah apa dan kapan, bisa difilter per akun/proyek; password dan kode akses tidak pernah dicatat).
 - **Produksi**: hanya harga produksi; harga jual, termin, margin, akses klien tidak tampil. Proyek yang terlihat mengikuti centang akses.
 - Password sementara dari Owner wajib diganti saat login pertama. Salah 5 kali, akun terkunci 1 menit.
 - **Klien**: nilai per kategori (Rp), pekerjaan terealisasi vs pembayaran masuk, termin per milestone, kurva S + garis pembayaran.

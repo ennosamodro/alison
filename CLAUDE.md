@@ -115,6 +115,12 @@ Aturan keras:
 - Guard: tidak bisa menonaktifkan akun sendiri atau Owner aktif terakhir, tidak bisa menurunkan peran Owner terakhir.
 - Terbuka: vendor luar di proyeknya tetap melihat harga produksi proyek itu. Kalau itu tidak boleh, perlu peran ketiga "input progres saja" tanpa harga.
 
+**Riwayat perubahan (audit, 2026-11-23):** akun per orang (bukan per jabatan) supaya setiap perubahan bisa ditelusuri. Tab Sheets `Riwayat Perubahan`
+(waktu, username, proyek, aksi, rincian lama→baru), ditulis Apps Script dengan nama dari token sesi (bukan dari browser), tidak ada fitur ubah/hapus
+dari dashboard, hanya Owner yang membaca. Dicatat: submit laporan mingguan, ubah/tambah/hapus item RAB (termasuk harga), penyesuaian, termin,
+tandai selesai/buka kembali, akses klien, serta buat/ubah/reset/nonaktifkan akun. Jangan pernah mencatat password atau kode akses.
+Kolom "Diisi oleh" di log progres tetap ada. Akun demo: gilang (Owner), budi.mandor (Produksi), vendor.besi (Produksi, hanya C40).
+
 **Proyek selesai (arsip, diputuskan 2026-11-23):** jumlah proyek bersamaan di Alison sekitar 3 sampai 5, jadi tidak perlu pengelompokan per klien
 atau akses per grup. Cukup: field `selesai` + `selesaiTanggal` per proyek, tombol **Tandai selesai / Buka kembali** (khusus Owner) di sidebar proyek,
 dan sub-tab **Berjalan | Selesai** di daftar proyek. Proyek selesai keluar dari statistik dan "Perlu perhatian", datanya tidak dihapus.

@@ -309,6 +309,7 @@
   <div class="landing-tabs">
     <button id="ltProyek" class="active" onclick="showLandingTab('proyek')">Proyek</button>
     <button id="ltUsers" class="owner-only" onclick="showLandingTab('users')">Pengguna &amp; akses</button>
+    <button id="ltAudit" class="owner-only" onclick="showLandingTab('audit')">Riwayat perubahan</button>
   </div>
 
   <div id="landingProyekWrap">
@@ -338,6 +339,15 @@
   <input type="text" id="searchProyek" placeholder="Cari proyek..." oninput="renderLandingList()"
     style="width:100%; font-size:13px; padding:9px 12px; border:1px solid var(--line-strong); border-radius:7px; background:var(--surface); margin-bottom:12px;">
   <div class="proyek-grid" id="proyekList"></div>
+  </div>
+
+  <div id="landingAuditWrap" style="display:none;">
+    <p class="empty-hint" style="padding-top:0;">Hanya Owner yang melihat halaman ini. Setiap perubahan data tercatat otomatis atas nama akun yang login, lengkap dengan waktunya. Riwayat tidak bisa diubah atau dihapus dari dashboard. Password dan kode akses tidak pernah dicatat.<span class="dummy-flag">data dummy</span></p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+      <select id="auditAkun" onchange="renderAudit()" style="font-size:13px; padding:8px 12px; border:1px solid var(--line-strong); border-radius:6px; background:var(--surface);"></select>
+      <select id="auditProyek" onchange="renderAudit()" style="font-size:13px; padding:8px 12px; border:1px solid var(--line-strong); border-radius:6px; background:var(--surface);"></select>
+    </div>
+    <div id="auditTable"></div>
   </div>
 
   <div id="landingUsersWrap" style="display:none;">
@@ -666,10 +676,31 @@ const isOwner = () => loggedInRole === 'owner';
 // setelah 5x salah. Peran 'produksi' tidak pernah menerima harga jual, termin, maupun margin.
 // (Prototype ini hanya tidak menampilkannya; jangan anggap aman sebelum disaring di Apps Script.)
 const USERS = [
-  { username:'owner',    nama:'Admin Demo',          role:'owner',    password:'owner123',    aktif:true, semuaProyek:true,  proyek:[],       mustChange:false },
-  { username:'produksi', nama:'Pengawas Demo',       role:'produksi', password:'produksi123', aktif:true, semuaProyek:true,  proyek:[],       mustChange:false },
-  { username:'vendor',   nama:'Vendor Demo (luar)',  role:'produksi', password:'vendor123',   aktif:true, semuaProyek:false, proyek:['c40'], mustChange:false }
+  { username:'gilang',      nama:'Gilang',       role:'owner',    password:'gilang123', aktif:true, semuaProyek:true,  proyek:[],       mustChange:false },
+  { username:'budi.mandor', nama:'Budi',         role:'produksi', password:'budi123',   aktif:true, semuaProyek:true,  proyek:[],       mustChange:false },
+  { username:'vendor.besi', nama:'Vendor Besi',  role:'produksi', password:'vendor123', aktif:true, semuaProyek:false, proyek:['c40'], mustChange:false }
 ];
+
+// ---------- Riwayat perubahan (audit) ----------
+// Dicatat otomatis atas nama akun yang login. Di produksi: tab `Riwayat Perubahan` di Sheets, ditulis Apps Script
+// (nama diambil dari token sesi, bukan dari browser), tidak ada fitur ubah/hapus dari dashboard. Hanya Owner yang membaca.
+// Jangan pernah mencatat password atau kode akses ke riwayat.
+const AUDIT = [];
+(function seedAudit(){
+  const ago = m => new Date(Date.now() - m*60000);
+  [
+    [1500, 'budi.mandor', 'Budi',   'Miral 6 Residence — Blok C40', 'Submit laporan mingguan', 'Minggu ke-2'],
+    [1320, 'gilang',      'Gilang', 'Miral 6 Residence — Blok C40', 'Tambah penyesuaian', 'Tambah di Pekerjaan tambah: Kanopi carport, jual Rp 28.500.000, produksi Rp 21.000.000'],
+    [780,  'gilang',      'Gilang', 'Miral 6 Residence — Blok C40', 'Termin ditandai dibayar', 'Termin "Pondasi selesai" (minggu 3)'],
+    [300,  'budi.mandor', 'Budi',   'Miral 6 Residence — Blok C40', 'Ubah item RAB', 'Beton kolom K1 20/40: harga produksi 5.000.000 → 5.200.000'],
+    [95,   'gilang',      'Gilang', '—', 'Buat akun', 'vendor.besi (Produksi, hanya Miral 6 Residence — Blok C40)']
+  ].forEach(r => AUDIT.push({ t: ago(r[0]), uname:r[1], nama:r[2], proyek:r[3], aksi:r[4], detail:r[5] }));
+})();
+function catat(aksi, detail, proyekKey){
+  if(!loggedInUser) return;
+  AUDIT.unshift({ t:new Date(), uname:loggedInUser.username, nama:loggedInUser.nama,
+                  proyek: proyekKey && DATA[proyekKey] ? DATA[proyekKey].nama : '—', aksi, detail });
+}
 let loggedInUser = null;
 let pendingUser = null;          // lolos password tapi wajib ganti password sementara
 const gagalLogin = {};           // username -> { n, sampai }
@@ -764,7 +795,7 @@ function logoutAdmin(){
   document.body.classList.remove('role-produksi');
   // Buang semua data sensitif dari DOM, jangan cuma disembunyikan, supaya tidak bocor ke akun berikutnya.
   ['finSummary','penyesuaianList','terminList','nominalCards','nominalSelisih','editList','rabPreview',
-   'usersTable','usersNotice','uProyekList','proyekList','landingStats','attentionBox'].forEach(id => {
+   'usersTable','usersNotice','uProyekList','proyekList','landingStats','attentionBox','auditTable'].forEach(id => {
     const el = document.getElementById(id); if(el) el.innerHTML = '';
   });
   document.getElementById('klienKode').textContent = '—';
@@ -784,12 +815,36 @@ function logoutAdmin(){
 // ---------- Pengguna & akses (khusus Owner) ----------
 let editingUser = null;
 function showLandingTab(t){
-  if(t === 'users' && !isOwner()) t = 'proyek';
+  if((t === 'users' || t === 'audit') && !isOwner()) t = 'proyek';
   document.getElementById('landingProyekWrap').style.display = t === 'proyek' ? '' : 'none';
   document.getElementById('landingUsersWrap').style.display = t === 'users' ? '' : 'none';
+  document.getElementById('landingAuditWrap').style.display = t === 'audit' ? '' : 'none';
   document.getElementById('ltProyek').classList.toggle('active', t === 'proyek');
   document.getElementById('ltUsers').classList.toggle('active', t === 'users');
+  document.getElementById('ltAudit').classList.toggle('active', t === 'audit');
   if(t === 'users'){ renderUsers(); resetUserForm(); }
+  if(t === 'audit') renderAudit(true);
+}
+function renderAudit(isiFilter){
+  if(!isOwner()) return;
+  const selA = document.getElementById('auditAkun'), selP = document.getElementById('auditProyek');
+  if(isiFilter){
+    selA.innerHTML = '<option value="">Semua akun</option>' + USERS.map(u => `<option value="${u.username}">${u.nama} (${u.username})</option>`).join('');
+    selP.innerHTML = '<option value="">Semua proyek</option><option value="—">Di luar proyek (akun, pengaturan)</option>' +
+      Object.keys(DATA).map(k => `<option>${DATA[k].nama}</option>`).join('');
+  }
+  const fa = selA.value, fp = selP.value;
+  const rows = AUDIT.filter(a => (!fa || a.uname === fa) && (!fp || a.proyek === fp));
+  const fmtT = d => d.toLocaleString('id-ID', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+  document.getElementById('auditTable').innerHTML = rows.length ? `
+    <table class="fin"><thead><tr><th>Waktu</th><th>Siapa</th><th>Proyek</th><th>Aksi</th><th>Rincian</th></tr></thead><tbody>
+    ${rows.map(a => `<tr>
+      <td style="white-space:nowrap; font-family:var(--mono); font-size:12px;">${fmtT(a.t)}</td>
+      <td><b>${a.nama}</b><div class="item-loc">${a.uname}</div></td>
+      <td style="font-size:12.5px;">${a.proyek}</td>
+      <td><span class="pill st-ready">${a.aksi}</span></td>
+      <td style="font-size:12.5px; color:var(--ink-soft);">${a.detail}</td></tr>`).join('')}
+    </tbody></table>` : '<div class="empty-hint" style="padding:0;">Belum ada perubahan yang cocok dengan filter ini.</div>';
 }
 function aksesTeks(u){
   if(u.role === 'owner' || u.semuaProyek) return 'Semua proyek';
@@ -877,12 +932,14 @@ function simpanUser(){
     const u = USERS.find(x => x.username === editingUser);
     if(u.role === 'owner' && role !== 'owner' && !ownerAktifLain(u.username)){ showToast('Tidak bisa: ini satu-satunya Owner aktif'); return; }
     Object.assign(u, { nama, role, semuaProyek: semua, proyek: semua ? [] : proyek });
+    catat('Ubah akses pengguna', `${u.username}: ${roleLabel(role)}, ${semua ? 'semua proyek' : proyek.map(k => DATA[k].nama).join(', ')}`);
     if(u === loggedInUser){ loggedInRole = u.role; document.body.classList.toggle('role-produksi', u.role !== 'owner'); }
     showToast('Akses ' + u.username + ' diperbarui');
   } else {
     if(USERS.some(x => x.username === username)){ showToast('Username sudah dipakai'); return; }
     const tmp = document.getElementById('uPassword').value;
     USERS.push({ username, nama, role, password: tmp, aktif:true, semuaProyek: semua, proyek: semua ? [] : proyek, mustChange:true });
+    catat('Buat akun', `${username} (${roleLabel(role)}, ${semua ? 'semua proyek' : 'hanya ' + proyek.map(k => DATA[k].nama).join(', ')})`);
     tampilNotice(username, tmp, 'Akun dibuat.');
   }
   renderUsers(); resetUserForm();
@@ -895,6 +952,7 @@ function resetPwUser(username){
   const u = USERS.find(x => x.username === username);
   const tmp = genTemp();
   u.password = tmp; u.mustChange = true;
+  catat('Reset password', `${username} (password sementara tidak dicatat)`);
   tampilNotice(username, tmp, 'Password direset.');
   renderUsers();
 }
@@ -905,6 +963,7 @@ function toggleAktifUser(username){
     if(u.role === 'owner' && !ownerAktifLain(u.username)){ showToast('Tidak bisa: ini satu-satunya Owner aktif'); return; }
   }
   u.aktif = !u.aktif;
+  catat(u.aktif ? 'Akun diaktifkan' : 'Akun dinonaktifkan', u.username);
   showToast(u.aktif ? 'Akun diaktifkan' : 'Akun dinonaktifkan, tidak bisa login lagi');
   renderUsers();
 }
@@ -1016,9 +1075,11 @@ function toggleSelesai(){
   if(!p.selesai){
     if(!confirm(`Tandai "${p.nama}" sebagai selesai? Proyek pindah ke tab Selesai. Data tidak dihapus dan bisa dibuka kembali.`)) return;
     p.selesai = true; p.selesaiTanggal = new Date().toISOString().slice(0,10);
+    catat('Tandai proyek selesai', p.nama, current);
     showToast('Proyek ditandai selesai dan dipindah ke tab Selesai');
   } else {
     p.selesai = false; p.selesaiTanggal = null;
+    catat('Buka kembali proyek', p.nama, current);
     showToast('Proyek dibuka kembali dan masuk daftar Berjalan');
   }
   renderSelesaiUI();
@@ -1163,11 +1224,14 @@ function tambahPenyesuaian(){
   const item = { minggu, jenis, kategori, ket, nilai: s*jual, nilaiProd: s*prod };
   if(jenis==='tambah') item.progres = 0;
   p.penyesuaian.push(item);
+  catat('Tambah penyesuaian', `${jenis==='tambah'?'Tambah':'Kurang'} di ${kategori}: ${ket}, jual ${rp(item.nilai)}, produksi ${rp(item.nilaiProd)}`, current);
   ['pnKet','pnNilai','pnNilaiProd','pnMinggu'].forEach(id=>document.getElementById(id).value='');
   renderKeuangan(); renderNominal();
   showToast('Penyesuaian kontrak ditambahkan — dashboard klien ikut berubah');
 }
 function hapusPenyesuaian(i){
+  const a = DATA[current].penyesuaian[i];
+  catat('Hapus penyesuaian', `${a.jenis==='tambah'?'Tambah':'Kurang'} di ${a.kategori}: ${a.ket}`, current);
   DATA[current].penyesuaian.splice(i,1);
   renderKeuangan(); renderNominal();
 }
@@ -1178,6 +1242,7 @@ function tambahTermin(){
   const syarat = parseFloat(document.getElementById('tmSyarat').value);
   if(!nama || isNaN(persen) || isNaN(syarat)){ showToast('Isi nama, persen, dan syarat progres dulu'); return; }
   p.termin.push({ nama, persen, syarat, bayarMinggu:null });
+  catat('Tambah termin', `${nama}: ${persen}%, syarat progres ${syarat}%`, current);
   p.termin.sort((a,b)=>a.syarat-b.syarat);
   ['tmNama','tmPersen','tmSyarat'].forEach(id=>document.getElementById(id).value='');
   renderKeuangan(); renderNominal();
@@ -1185,12 +1250,15 @@ function tambahTermin(){
 function toggleBayar(i){
   const t = DATA[current].termin[i];
   t.bayarMinggu = t.bayarMinggu==null ? Math.max(DATA[current].minggu,1) : null;
+  catat(t.bayarMinggu==null ? 'Status bayar dibatalkan' : 'Termin ditandai dibayar',
+        `Termin "${t.nama}"${t.bayarMinggu==null ? '' : ' (minggu '+t.bayarMinggu+')'}`, current);
   renderKeuangan(); renderNominal();
   showToast(t.bayarMinggu==null ? 'Status bayar dibatalkan' : 'Termin ditandai dibayar');
 }
 function hapusTermin(i){
   const t = DATA[current].termin[i];
   if(!confirm(`Hapus termin "${t.nama}"?`)) return;
+  catat('Hapus termin', `Termin "${t.nama}"`, current);
   DATA[current].termin.splice(i,1);
   renderKeuangan(); renderNominal();
 }
@@ -1259,6 +1327,7 @@ function tambahItemRAB(){
   if(!nama){ showToast('Isi nama item dulu'); return; }
   const kat = p.kategori.find(k => k.kode === kodeKategori);
   kat.items.push({ nama, lokasi, volRencana:volume, satuan, bobotItem:bobot, hargaProd, hargaJual, progressMingguIni:0 });
+  catat('Tambah item RAB', `${nama} di ${kodeKategori}, ${volume} ${satuan}`, current);
   ['rabNama','rabLokasi','rabVolume','rabSatuan','rabBobot','rabHargaProd','rabHargaJual'].forEach(id=>document.getElementById(id).value='');
   renderRabForm(); renderKatNav(); renderEdit();
   showToast(`Item "${nama}" ditambahkan ke ${kodeKategori}`);
@@ -1329,7 +1398,13 @@ function renderEdit(){
 function editField(kodeKategori, itemIndex, field, value){
   const p = DATA[current];
   const item = p.kategori.find(k => k.kode === kodeKategori).items[itemIndex];
+  const lama = item[field];
   item[field] = ['volRencana','bobotItem','hargaProd','hargaJual'].includes(field) ? (parseFloat(value)||0) : value;
+  if(lama !== item[field]){
+    const label = { nama:'nama', lokasi:'lokasi', volRencana:'volume', satuan:'satuan', bobotItem:'bobot', hargaProd:'harga produksi', hargaJual:'harga jual' }[field] || field;
+    const f = ['hargaProd','hargaJual'].includes(field) ? (n => Number(n).toLocaleString('id-ID')) : (n => n);
+    catat('Ubah item RAB', `${item.nama}: ${label} ${f(lama)} → ${f(item[field])}`, current);
+  }
   renderRabForm(); renderKatNav();
   showToast('Item diperbarui');
 }
@@ -1340,6 +1415,7 @@ function hapusItem(kodeKategori, itemIndex){
   const nama = kat.items[itemIndex].nama;
   if(!confirm(`Hapus "${nama}"?`)) return;
   kat.items.splice(itemIndex, 1);
+  catat('Hapus item RAB', `${nama} dari ${kodeKategori}`, current);
   renderRabForm(); renderKatNav(); renderEdit();
   showToast(`Item "${nama}" dihapus`);
 }
@@ -1368,6 +1444,7 @@ function renderAkses(){
 function generateKode(){
   const p = DATA[current];
   p.akses.kode = generateKodeString(p.nama);
+  catat('Generate ulang kode akses klien', 'Kode lama tidak berlaku (kode baru tidak dicatat)', current);
   renderAkses();
   showToast('Kode akses baru dibuat. Kode lama otomatis tidak berlaku.');
 }
@@ -1375,6 +1452,7 @@ function generateKode(){
 function toggleAkses(){
   const p = DATA[current];
   p.akses.aktif = !p.akses.aktif;
+  catat(p.akses.aktif ? 'Akses klien diaktifkan' : 'Akses klien dinonaktifkan', p.nama, current);
   renderAkses();
   showToast(p.akses.aktif ? 'Akses klien diaktifkan' : 'Akses klien dinonaktifkan');
 }
@@ -1437,6 +1515,7 @@ function bukaFolderFoto(){
 function submitMinggu(){
   const mulai = document.getElementById('periodeMulai').value;
   const akhir = document.getElementById('periodeAkhir').value;
+  catat('Submit laporan mingguan', `Minggu ke-${selectedMinggu}, periode ${mulai} s/d ${akhir}`, current);
   showToast(`Minggu ke-${selectedMinggu} (${mulai} s/d ${akhir}) tersimpan — diisi oleh ${loggedInAdmin}. (Belum tersambung ke Google Sheets)`);
 }
 
@@ -1459,7 +1538,7 @@ function showToast(msg){
   var loginBox = function(){ return shown('loginScreen') && shown('loginBox'); };
   // Auto-isi: username ditentukan dari huruf pertama yang diketik (p = produksi, v = vendor, selain itu owner);
   // password otomatis mengikuti username yang sedang terisi.
-  var pickUser = function(typed){ var c=(typed||'').charAt(0).toLowerCase(); return c==='p'?'produksi' : c==='v'?'vendor' : 'owner'; };
+  var pickUser = function(typed){ var c=(typed||'').charAt(0).toLowerCase(); return c==='b'?'budi.mandor' : c==='v'?'vendor.besi' : 'gilang'; };
   var passOf = function(){
     var u = (document.getElementById('loginUser').value||'').trim().toLowerCase();
     var f = USERS.filter(function(x){return x.username===u;})[0] || USERS[0];
@@ -1468,8 +1547,8 @@ function showToast(msg){
   window.DEMO_GUIDE = {
     fields: [
       { selector:'#loginUser', value:pickUser, label:'Akun demo (peran berbeda, tampilan berbeda)',
-        options:[ {label:'owner (lihat semua)', value:'owner'}, {label:'produksi (tanpa harga jual)', value:'produksi'}, {label:'vendor (produksi, 1 proyek)', value:'vendor'} ] },
-      { selector:'#loginPass', value:passOf, label:'Password demo: <b>ikut username</b> (owner123 / produksi123 / vendor123)' }
+        options:[ {label:'gilang (Owner, lihat semua)', value:'gilang'}, {label:'budi.mandor (Produksi, tanpa harga jual)', value:'budi.mandor'}, {label:'vendor.besi (Produksi, 1 proyek)', value:'vendor.besi'} ] },
+      { selector:'#loginPass', value:passOf, label:'Password demo: <b>ikut username</b> (gilang123 / budi123 / vendor123)' }
     ],
     steps: [
       { id:'usr',  kind:'type',  target:'#loginUser', show:loginBox,
@@ -1483,6 +1562,10 @@ function showToast(msg){
         text:'Tab <b>Pengguna &amp; akses</b> (khusus Owner): atur siapa boleh masuk dan proyek apa saja yang boleh dibuka.' },
       { id:'utbl', kind:'info',  target:'#usersTable', show:function(){return shown('landingScreen');},
         text:'Daftar akun: peran, proyek yang boleh dibuka, aktif/nonaktif, <b>reset password</b>.' },
+      { id:'ltaud', kind:'info', target:'#ltAudit', show:function(){return shown('landingScreen');},
+        text:'<b>Riwayat perubahan</b> (khusus Owner): siapa mengubah apa dan kapan, tercatat otomatis atas nama akun yang login.' },
+      { id:'taud', kind:'info', target:'#auditTable', show:function(){return shown('landingScreen');},
+        text:'Contoh: harga produksi diubah, termin ditandai dibayar, penyesuaian ditambah. Bisa difilter per orang atau proyek.' },
       { id:'uadd', kind:'click', target:'#btnTambahUser', show:function(){return shown('landingScreen');},
         text:'<b>+ Tambah pengguna</b>: satu akun untuk satu orang, bukan akun jabatan. Peran hanya atribut akunnya.' },
       { id:'uform',kind:'info',  target:'#userFormBox', show:function(){return shown('landingScreen');},
@@ -1543,6 +1626,6 @@ function showToast(msg){
   };
 })();
 </script>
-<script src="demo-guide.js?v=6"></script>
+<script src="demo-guide.js?v=7"></script>
 </body>
 </html>
