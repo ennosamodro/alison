@@ -87,7 +87,15 @@
   .new-project-form input{width:100%; font-size:14px; padding:10px 12px; border:1px solid var(--line-strong); border-radius:6px; margin-bottom:10px; background:var(--paper);}
 
   /* Gate screens */
-  #passwordGateScreen, #pinGateScreen{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;}
+  #loginScreen{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;}
+  .gate-box input + input{margin-top:-2px;}
+  .landing-tabs{display:flex; gap:4px; margin:-14px 0 24px; border-bottom:1px solid var(--line);}
+  .landing-tabs button{background:none; border:none; border-bottom:2px solid transparent; padding:9px 14px; font-size:13px; color:var(--ink-soft); cursor:pointer; margin-bottom:-1px;}
+  .landing-tabs button.active{color:var(--accent-dark); border-bottom-color:var(--accent); font-weight:600;}
+  .user-notice{background:#FDF6ED; border:1px solid #EAD9B4; border-radius:8px; padding:11px 14px; font-size:13px; color:#7A5B1E; margin-bottom:14px;}
+  .user-notice code{font-family:var(--mono); font-size:14px; font-weight:700; background:#fff; padding:2px 8px; border-radius:5px; color:var(--ink);}
+  .form-grid .pcheck, .pcheck{display:flex; align-items:center; gap:8px; font-size:13px; padding:4px 0; text-transform:none; letter-spacing:0; color:var(--ink);}
+  .pcheck input{width:auto !important; margin:0;}
   .gate-box{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:36px 32px; max-width:380px; width:100%; text-align:center;}
   .gate-box .brand-mark{width:44px; height:44px; font-size:15px; margin:0 auto 16px;}
   .gate-box h1{font-size:16px; margin:0 0 4px;}
@@ -266,27 +274,26 @@
 </head>
 <body>
 
-<div id="passwordGateScreen">
-  <div class="gate-box">
+<div id="loginScreen">
+  <div class="gate-box" id="loginBox">
     <div class="brand-mark">GR</div>
     <h1>Progress Konstruksi</h1>
-    <div class="sub">Akses terbatas — khusus tim internal</div>
-    <input type="password" id="passwordGlobal" placeholder="Password akses" onkeydown="if(event.key==='Enter') cekPasswordGlobal()">
-    <button onclick="cekPasswordGlobal()">Lanjut</button>
-    <div class="gate-error" id="passwordError"></div>
-    <div class="gate-hint">Password ini sama untuk semua tim, disimpan di Vercel Environment — bukan dicatat manual di sini.</div>
+    <div class="sub">Masuk dengan akun pribadi kamu</div>
+    <input type="text" id="loginUser" placeholder="Username" autocomplete="username" autocapitalize="none" onkeydown="if(event.key==='Enter') cekLogin()">
+    <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter') cekLogin()">
+    <button id="loginBtn" onclick="cekLogin()">Masuk</button>
+    <div class="gate-error" id="loginError"></div>
+    <div class="gate-hint">Setiap perubahan yang kamu buat tercatat atas nama akun ini. Lupa password? Minta Owner meresetnya.</div>
   </div>
-</div>
 
-<div id="pinGateScreen" style="display:none;">
-  <div class="gate-box">
+  <div class="gate-box" id="gantiPwBox" style="display:none;">
     <div class="brand-mark">GR</div>
-    <h1>Siapa yang login?</h1>
-    <div class="sub">Masukkan PIN pribadi kamu</div>
-    <input type="password" id="pinAdmin" placeholder="PIN" maxlength="6" onkeydown="if(event.key==='Enter') cekPin()">
-    <button onclick="cekPin()">Masuk</button>
-    <div class="gate-error" id="pinError"></div>
-    <div class="gate-hint">Setiap perubahan yang kamu buat akan tercatat atas nama PIN ini.</div>
+    <h1>Ganti password</h1>
+    <div class="sub">Password sementara dari Owner wajib diganti sebelum lanjut</div>
+    <input type="password" id="pwBaru" placeholder="Password baru (min. 8 karakter)" autocomplete="new-password">
+    <input type="password" id="pwBaru2" placeholder="Ulangi password baru" autocomplete="new-password" onkeydown="if(event.key==='Enter') simpanPwBaru()">
+    <button onclick="simpanPwBaru()">Simpan &amp; masuk</button>
+    <div class="gate-error" id="pwBaruError"></div>
   </div>
 </div>
 
@@ -295,8 +302,13 @@
     <div class="brand-mark">GR</div>
     <div><h1>Progress Konstruksi</h1><div class="sub">Login sebagai: <span id="loggedAsName">—</span> · <button class="ghost" style="padding:2px 8px; font-size:11px;" onclick="logoutAdmin()">Keluar</button></div></div>
   </div>
+  <div class="landing-tabs">
+    <button id="ltProyek" class="active" onclick="showLandingTab('proyek')">Proyek</button>
+    <button id="ltUsers" class="owner-only" onclick="showLandingTab('users')">Pengguna &amp; akses</button>
+  </div>
 
-  <div id="newProjectFormWrap" style="display:none;">
+  <div id="landingProyekWrap">
+  <div id="newProjectFormWrap" class="owner-only" style="display:none;">
     <div class="new-project-form">
       <label style="font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; display:block; margin-bottom:6px;">Nama proyek baru</label>
       <input type="text" id="newProjectNama" placeholder="misal: Miral 6 Residence — Blok C41">
@@ -309,7 +321,7 @@
     </div>
   </div>
 
-  <button class="landing-cta" onclick="document.getElementById('newProjectFormWrap').style.display='block'">
+  <button class="landing-cta owner-only" onclick="document.getElementById('newProjectFormWrap').style.display='block'">
     <div><div class="t">+ Buat proyek baru</div><div class="d">Mulai proyek konstruksi baru dari nol, susun struktur RAB-nya</div></div>
     <div class="arrow">&#8594;</div>
   </button>
@@ -321,6 +333,32 @@
   <input type="text" id="searchProyek" placeholder="Cari proyek..." oninput="renderLandingList()"
     style="width:100%; font-size:13px; padding:9px 12px; border:1px solid var(--line-strong); border-radius:7px; background:var(--surface); margin-bottom:12px;">
   <div class="proyek-grid" id="proyekList"></div>
+  </div>
+
+  <div id="landingUsersWrap" style="display:none;">
+    <p class="empty-hint" style="padding-top:0;">Hanya Owner yang melihat halaman ini. Atur siapa boleh masuk, perannya, dan proyek apa saja yang boleh dibuka. Vendor luar cukup dicentang proyeknya saja. Di produksi, password disimpan sebagai hash di server (di prototype ini masih teks biasa).<span class="dummy-flag">data dummy</span></p>
+    <div id="usersNotice"></div>
+    <div id="usersTable"></div>
+
+    <div class="rab-form" id="userFormBox" style="margin-top:16px; max-width:640px;">
+      <h3 id="userFormTitle">Tambah pengguna</h3>
+      <div class="form-grid">
+        <div><label>Nama</label><input type="text" id="uNama" placeholder="misal: Budi (Mandor)"></div>
+        <div><label>Username</label><input type="text" id="uUsername" placeholder="huruf kecil, tanpa spasi" autocapitalize="none"></div>
+        <div><label>Peran</label>
+          <select id="uRole" onchange="syncUserForm()"><option value="produksi">Produksi (tanpa harga jual)</option><option value="owner">Owner (lihat semua)</option></select></div>
+        <div id="uPwWrap"><label>Password sementara</label><input type="text" id="uPassword" readonly></div>
+        <div class="full">
+          <label class="pcheck"><input type="checkbox" id="uSemua" onchange="syncUserForm()"> Semua proyek, termasuk proyek baru</label>
+        </div>
+        <div class="full" id="uProyekWrap"><label>Proyek yang boleh dibuka</label><div id="uProyekList"></div></div>
+      </div>
+      <div class="form-actions" style="gap:8px;">
+        <button class="ghost" onclick="resetUserForm()">Batal</button>
+        <button class="primary" onclick="simpanUser()">Simpan</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="workspaceScreen" class="workspace-shell" style="display:none;">
@@ -611,14 +649,26 @@ let loggedInAdmin = null;
 let loggedInRole = null;   // 'owner' | 'produksi'
 const isOwner = () => loggedInRole === 'owner';
 
-// Dummy — di produksi ini dicek server-side via Apps Script, bukan di JS browser.
-// Peran juga ditentukan server: untuk 'produksi', server TIDAK mengirim harga jual, termin, maupun margin.
+// ---------- Pengguna & login (DUMMY) ----------
+// Di produksi semua ini ada di Apps Script: password disimpan sebagai hash + salt di Sheets, login menghasilkan
+// token bersesi berumur terbatas, tiap request dicek token + peran + proyek yang boleh dibuka, dan akun dikunci
+// setelah 5x salah. Peran 'produksi' tidak pernah menerima harga jual, termin, maupun margin.
 // (Prototype ini hanya tidak menampilkannya; jangan anggap aman sebelum disaring di Apps Script.)
-const PASSWORD_GLOBAL = "demo123";
-const ADMIN_PINS = {
-  "1234": { nama:"Admin Demo — Owner",       role:"owner" },
-  "5678": { nama:"Pengawas Demo — Produksi", role:"produksi" }
-};
+const USERS = [
+  { username:'owner',    nama:'Admin Demo',          role:'owner',    password:'owner123',    aktif:true, semuaProyek:true,  proyek:[],       mustChange:false },
+  { username:'produksi', nama:'Pengawas Demo',       role:'produksi', password:'produksi123', aktif:true, semuaProyek:true,  proyek:[],       mustChange:false },
+  { username:'vendor',   nama:'Vendor Demo (luar)',  role:'produksi', password:'vendor123',   aktif:true, semuaProyek:false, proyek:['c40'], mustChange:false }
+];
+let loggedInUser = null;
+let pendingUser = null;          // lolos password tapi wajib ganti password sementara
+const gagalLogin = {};           // username -> { n, sampai }
+const roleLabel = r => r === 'owner' ? 'Owner' : 'Produksi';
+// Akses per proyek: Owner dan akun "semua proyek" melihat semuanya; akun terbatas hanya proyek yang dicentang.
+function bolehProyek(key){
+  const u = loggedInUser;
+  return !!u && (u.role === 'owner' || u.semuaProyek || u.proyek.includes(key));
+}
+const proyekBolehKeys = () => Object.keys(DATA).filter(bolehProyek);
 
 // ----- Keuangan: persen realisasi x nilai kontrak berlaku (harga jual) -----
 function rp(n){ return (n<0?'-':'') + 'Rp ' + Math.abs(Math.round(n)).toLocaleString('id-ID'); }
@@ -647,57 +697,201 @@ function selisihBoxHtml(f){
   return `<div class="fin-box ${t[0]}"><b>${t[1]}</b> ${t[2]} <span style="opacity:.7;">(ini yang dilihat klien)</span></div>`;
 }
 
-function cekPasswordGlobal(){
-  const val = document.getElementById('passwordGlobal').value;
-  const err = document.getElementById('passwordError');
-  if(val !== PASSWORD_GLOBAL){
-    err.textContent = 'Password salah.';
+function cekLogin(){
+  const uname = document.getElementById('loginUser').value.trim().toLowerCase();
+  const pw = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginError');
+  const g = gagalLogin[uname] || (gagalLogin[uname] = { n:0, sampai:0 });
+  if(Date.now() < g.sampai){ err.textContent = 'Terlalu banyak percobaan salah. Coba lagi sebentar.'; return; }
+  const u = USERS.find(x => x.username === uname);
+  if(!u || u.password !== pw){
+    g.n++;
+    if(g.n >= 5){ g.n = 0; g.sampai = Date.now() + 60000; err.textContent = 'Salah 5 kali. Akun dikunci 1 menit.'; }
+    else err.textContent = 'Username atau password salah.';   // sengaja tidak membedakan, supaya username tidak bisa ditebak
     return;
   }
-  err.textContent = '';
-  document.getElementById('passwordGateScreen').style.display = 'none';
-  document.getElementById('pinGateScreen').style.display = 'flex';
+  if(!u.aktif){ err.textContent = 'Akun ini dinonaktifkan. Hubungi Owner.'; return; }
+  g.n = 0; err.textContent = '';
+  if(u.mustChange){
+    pendingUser = u;
+    document.getElementById('loginBox').style.display = 'none';
+    document.getElementById('gantiPwBox').style.display = '';
+    return;
+  }
+  masukSebagai(u);
 }
 
-function cekPin(){
-  const val = document.getElementById('pinAdmin').value;
-  const err = document.getElementById('pinError');
-  if(!ADMIN_PINS[val]){
-    err.textContent = 'PIN tidak dikenali.';
-    return;
-  }
+function simpanPwBaru(){
+  const a = document.getElementById('pwBaru').value, b = document.getElementById('pwBaru2').value;
+  const err = document.getElementById('pwBaruError');
+  if(a.length < 8){ err.textContent = 'Minimal 8 karakter.'; return; }
+  if(a !== b){ err.textContent = 'Kedua password harus sama.'; return; }
+  if(a === pendingUser.password){ err.textContent = 'Password baru tidak boleh sama dengan yang sementara.'; return; }
+  pendingUser.password = a; pendingUser.mustChange = false;
   err.textContent = '';
-  loggedInAdmin = ADMIN_PINS[val].nama;
-  loggedInRole = ADMIN_PINS[val].role;
-  document.body.classList.toggle('role-produksi', loggedInRole !== 'owner');
-  document.getElementById('pinGateScreen').style.display = 'none';
+  const u = pendingUser; pendingUser = null;
+  masukSebagai(u);
+}
+
+function masukSebagai(u){
+  loggedInUser = u;
+  loggedInAdmin = `${u.nama} — ${roleLabel(u.role)}`;
+  loggedInRole = u.role;
+  document.body.classList.toggle('role-produksi', u.role !== 'owner');
+  document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('landingScreen').style.display = 'block';
   document.getElementById('loggedAsName').textContent = loggedInAdmin;
+  showLandingTab('proyek');
   renderLandingList();
 }
 
 function logoutAdmin(){
   loggedInAdmin = null;
   loggedInRole = null;
+  loggedInUser = null;
+  pendingUser = null;
   document.body.classList.remove('role-produksi');
-  // Buang semua angka sensitif dari DOM, jangan cuma disembunyikan, supaya tidak bocor ke peran berikutnya.
-  ['finSummary','penyesuaianList','terminList','nominalCards','nominalSelisih','editList','rabPreview'].forEach(id => {
+  // Buang semua data sensitif dari DOM, jangan cuma disembunyikan, supaya tidak bocor ke akun berikutnya.
+  ['finSummary','penyesuaianList','terminList','nominalCards','nominalSelisih','editList','rabPreview',
+   'usersTable','usersNotice','uProyekList','proyekList','landingStats','attentionBox'].forEach(id => {
     const el = document.getElementById(id); if(el) el.innerHTML = '';
   });
   document.getElementById('klienKode').textContent = '—';
   document.getElementById('klienLink').textContent = '—';
   document.getElementById('qrImage').removeAttribute('src');
-  document.getElementById('pinAdmin').value = '';
-  document.getElementById('passwordGlobal').value = '';
+  ['loginUser','loginPass','pwBaru','pwBaru2'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('pwBaruError').textContent = '';
   document.getElementById('landingScreen').style.display = 'none';
   document.getElementById('workspaceScreen').style.display = 'none';
-  document.getElementById('passwordGateScreen').style.display = 'flex';
+  document.getElementById('gantiPwBox').style.display = 'none';
+  document.getElementById('loginBox').style.display = '';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+
+// ---------- Pengguna & akses (khusus Owner) ----------
+let editingUser = null;
+function showLandingTab(t){
+  if(t === 'users' && !isOwner()) t = 'proyek';
+  document.getElementById('landingProyekWrap').style.display = t === 'proyek' ? '' : 'none';
+  document.getElementById('landingUsersWrap').style.display = t === 'users' ? '' : 'none';
+  document.getElementById('ltProyek').classList.toggle('active', t === 'proyek');
+  document.getElementById('ltUsers').classList.toggle('active', t === 'users');
+  if(t === 'users'){ renderUsers(); resetUserForm(); }
+}
+function aksesTeks(u){
+  if(u.role === 'owner' || u.semuaProyek) return 'Semua proyek';
+  return u.proyek.length ? u.proyek.map(k => DATA[k] ? DATA[k].nama : k).join(', ') : '<i style="color:var(--ink-faint);">belum ada proyek</i>';
+}
+function renderUsers(){
+  if(!isOwner()) return;
+  document.getElementById('usersTable').innerHTML = `
+    <table class="fin"><thead><tr><th>Pengguna</th><th>Peran</th><th>Proyek yang boleh dibuka</th><th>Status</th><th></th></tr></thead><tbody>
+    ${USERS.map(u => `<tr>
+      <td><b>${u.nama}</b><div class="item-loc">${u.username}${u === loggedInUser ? ' · kamu' : ''}${u.mustChange ? ' · wajib ganti password' : ''}</div></td>
+      <td><span class="pill ${u.role==='owner'?'st-ready':'st-paid'}">${roleLabel(u.role)}</span></td>
+      <td style="font-size:12.5px;">${aksesTeks(u)}</td>
+      <td><span class="pill ${u.aktif?'st-paid':'st-wait'}">${u.aktif?'Aktif':'Nonaktif'}</span></td>
+      <td style="text-align:right; white-space:nowrap;">
+        <button class="ghost" style="padding:5px 9px; font-size:12px;" onclick="editUser('${u.username}')">Edit</button>
+        <button class="ghost" style="padding:5px 9px; font-size:12px;" onclick="resetPwUser('${u.username}')">Reset password</button>
+        <button class="${u.aktif?'danger':'ghost'}" style="${u.aktif?'':'padding:5px 9px; font-size:12px;'}" onclick="toggleAktifUser('${u.username}')">${u.aktif?'Nonaktifkan':'Aktifkan'}</button>
+      </td></tr>`).join('')}
+    </tbody></table>`;
+}
+function genTemp(){
+  const c = 'abcdefghjkmnpqrstuvwxyz23456789';
+  return Array.from({length:8}, () => c[Math.floor(Math.random()*c.length)]).join('');
+}
+function renderProyekChecks(sel){
+  document.getElementById('uProyekList').innerHTML = Object.keys(DATA).map(k =>
+    `<label class="pcheck"><input type="checkbox" data-proyek="${k}" ${sel.includes(k)?'checked':''}> ${DATA[k].nama}</label>`).join('');
+}
+function syncUserForm(){
+  const owner = document.getElementById('uRole').value === 'owner';
+  const semua = document.getElementById('uSemua');
+  if(owner) semua.checked = true;
+  semua.disabled = owner;
+  document.getElementById('uProyekWrap').style.display = (owner || semua.checked) ? 'none' : '';
+}
+function resetUserForm(){
+  editingUser = null;
+  document.getElementById('userFormTitle').textContent = 'Tambah pengguna';
+  ['uNama','uUsername'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('uUsername').disabled = false;
+  document.getElementById('uRole').value = 'produksi';
+  document.getElementById('uSemua').checked = false;      // paling aman: mulai dari terbatas
+  document.getElementById('uPassword').value = genTemp();
+  document.getElementById('uPwWrap').style.display = '';
+  renderProyekChecks([]);
+  syncUserForm();
+}
+function editUser(username){
+  const u = USERS.find(x => x.username === username);
+  editingUser = username;
+  document.getElementById('userFormTitle').textContent = 'Edit pengguna: ' + u.username;
+  document.getElementById('uNama').value = u.nama;
+  document.getElementById('uUsername').value = u.username;
+  document.getElementById('uUsername').disabled = true;
+  document.getElementById('uRole').value = u.role;
+  document.getElementById('uSemua').checked = u.semuaProyek;
+  document.getElementById('uPwWrap').style.display = 'none';    // password diganti lewat "Reset password"
+  renderProyekChecks(u.proyek);
+  syncUserForm();
+  document.getElementById('userFormBox').scrollIntoView({ behavior:'smooth', block:'center' });
+}
+function ownerAktifLain(exceptUsername){
+  return USERS.some(x => x.role === 'owner' && x.aktif && x.username !== exceptUsername);
+}
+function simpanUser(){
+  const nama = document.getElementById('uNama').value.trim();
+  const username = document.getElementById('uUsername').value.trim().toLowerCase();
+  const role = document.getElementById('uRole').value;
+  const semua = role === 'owner' || document.getElementById('uSemua').checked;
+  const proyek = [...document.querySelectorAll('#uProyekList input:checked')].map(i => i.dataset.proyek);
+  if(!nama){ showToast('Isi nama dulu'); return; }
+  if(!/^[a-z0-9._-]{3,20}$/.test(username)){ showToast('Username 3-20 karakter: huruf kecil, angka, titik, strip'); return; }
+  if(!semua && !proyek.length){ showToast('Centang minimal satu proyek, atau pilih "Semua proyek"'); return; }
+  if(editingUser){
+    const u = USERS.find(x => x.username === editingUser);
+    if(u.role === 'owner' && role !== 'owner' && !ownerAktifLain(u.username)){ showToast('Tidak bisa: ini satu-satunya Owner aktif'); return; }
+    Object.assign(u, { nama, role, semuaProyek: semua, proyek: semua ? [] : proyek });
+    if(u === loggedInUser){ loggedInRole = u.role; document.body.classList.toggle('role-produksi', u.role !== 'owner'); }
+    showToast('Akses ' + u.username + ' diperbarui');
+  } else {
+    if(USERS.some(x => x.username === username)){ showToast('Username sudah dipakai'); return; }
+    const tmp = document.getElementById('uPassword').value;
+    USERS.push({ username, nama, role, password: tmp, aktif:true, semuaProyek: semua, proyek: semua ? [] : proyek, mustChange:true });
+    tampilNotice(username, tmp, 'Akun dibuat.');
+  }
+  renderUsers(); resetUserForm();
+}
+function tampilNotice(username, tmp, awal){
+  document.getElementById('usersNotice').innerHTML =
+    `<div class="user-notice">${awal} Password sementara untuk <b>${username}</b>: <code>${tmp}</code>. Berikan langsung ke orangnya. Wajib diganti saat login pertama dan tidak ditampilkan lagi.</div>`;
+}
+function resetPwUser(username){
+  const u = USERS.find(x => x.username === username);
+  const tmp = genTemp();
+  u.password = tmp; u.mustChange = true;
+  tampilNotice(username, tmp, 'Password direset.');
+  renderUsers();
+}
+function toggleAktifUser(username){
+  const u = USERS.find(x => x.username === username);
+  if(u.aktif){
+    if(u === loggedInUser){ showToast('Tidak bisa menonaktifkan akunmu sendiri'); return; }
+    if(u.role === 'owner' && !ownerAktifLain(u.username)){ showToast('Tidak bisa: ini satu-satunya Owner aktif'); return; }
+  }
+  u.aktif = !u.aktif;
+  showToast(u.aktif ? 'Akun diaktifkan' : 'Akun dinonaktifkan, tidak bisa login lagi');
+  renderUsers();
 }
 
 function fmt(n){ return n.toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
 function renderLandingStats(){
-  const keys = Object.keys(DATA);
+  const keys = proyekBolehKeys();
   const total = keys.length;
   const devs = keys.map(k => DATA[k].realisasiKumulatif - DATA[k].rencanaKumulatif);
   const butuhPerhatian = devs.filter(d => d < 0).length;
@@ -729,7 +923,7 @@ function renderLandingList(){
   renderLandingStats();
   const wrap = document.getElementById('proyekList');
   const q = (document.getElementById('searchProyek')?.value || '').toLowerCase().trim();
-  const keys = Object.keys(DATA).filter(key => DATA[key].nama.toLowerCase().includes(q) || key.toLowerCase().includes(q));
+  const keys = proyekBolehKeys().filter(key => DATA[key].nama.toLowerCase().includes(q) || key.toLowerCase().includes(q));
   if(!keys.length){
     wrap.innerHTML = `<div style="grid-column:1/-1; padding:30px; text-align:center; color:var(--ink-faint); font-size:13px;">Tidak ada proyek yang cocok dengan "${q}"</div>`;
     return;
@@ -757,6 +951,7 @@ function renderLandingList(){
 }
 
 function masukProyek(key){
+  if(!bolehProyek(key)) return;   // akun terbatas tidak bisa membuka proyek yang tidak dicentang
   current = key;
   selectedMinggu = null;
   activeKategoriKode = DATA[key].kategori.length ? DATA[key].kategori[0].kode : null;
@@ -1189,30 +1384,44 @@ function showToast(msg){
   setTimeout(()=>toast.classList.remove('show'), 3200);
 }
 
-// renderLandingList() dipanggil setelah login PIN berhasil (lihat cekPin)
+// renderLandingList() dipanggil setelah login berhasil (lihat masukSebagai)
 </script>
 
-<!-- MODE DEMO (presentasi): kursor penunjuk + auto-isi password. HAPUS dua tag ini saat disambung ke Apps Script. -->
+<!-- MODE DEMO (presentasi): arahan saat mouse mendekati titik penting + auto-isi login. HAPUS dua tag ini saat disambung ke Apps Script. -->
 <script>
 (function(){
   var shown = function(id){ var e=document.getElementById(id); return !!e && e.style.display!=='none'; };
   var view  = function(v){ var e=document.getElementById('view-'+v); return !!e && e.classList.contains('active'); };
   var inWs  = function(){ return shown('workspaceScreen'); };
+  var loginBox = function(){ return shown('loginScreen') && shown('loginBox'); };
+  // Auto-isi: username ditentukan dari huruf pertama yang diketik (p = produksi, v = vendor, selain itu owner);
+  // password otomatis mengikuti username yang sedang terisi.
+  var pickUser = function(typed){ var c=(typed||'').charAt(0).toLowerCase(); return c==='p'?'produksi' : c==='v'?'vendor' : 'owner'; };
+  var passOf = function(){
+    var u = (document.getElementById('loginUser').value||'').trim().toLowerCase();
+    var f = USERS.filter(function(x){return x.username===u;})[0] || USERS[0];
+    return f.password;
+  };
   window.DEMO_GUIDE = {
-    resetWhen: function(){ return shown('passwordGateScreen'); },
     fields: [
-      { selector:'#passwordGlobal', value:'demo123', label:'Password demo: <b>demo123</b>' },
-      { selector:'#pinAdmin',       value:'1234',    label:'PIN demo: <b>1234</b> (Owner, lihat semua) / <b>5678</b> (Produksi, tanpa harga jual)' }
+      { selector:'#loginUser', value:pickUser, label:'Akun demo (peran berbeda, tampilan berbeda)',
+        options:[ {label:'owner (lihat semua)', value:'owner'}, {label:'produksi (tanpa harga jual)', value:'produksi'}, {label:'vendor (produksi, 1 proyek)', value:'vendor'} ] },
+      { selector:'#loginPass', value:passOf, label:'Password demo: <b>ikut username</b> (owner123 / produksi123 / vendor123)' }
     ],
     steps: [
-      { id:'pw',  kind:'type',  target:'#passwordGlobal', show:function(){return shown('passwordGateScreen');}, doneWhen:function(){return !shown('passwordGateScreen') || document.getElementById('passwordGlobal').value==='demo123';},
-        text:'Gerbang pertama: <b>password tim</b>. Ketik apa saja, otomatis terisi.' },
-      { id:'pwb', kind:'click', target:'#passwordGateScreen button', show:function(){return shown('passwordGateScreen');},
-        text:'Klik <b>Lanjut</b>.' },
-      { id:'pin', kind:'type',  target:'#pinAdmin', show:function(){return shown('pinGateScreen');}, doneWhen:function(){return !shown('pinGateScreen') || document.getElementById('pinAdmin').value==='1234';},
-        text:'Gerbang kedua: <b>PIN pribadi</b>. Tiap perubahan tercatat atas nama PIN ini (audit).' },
-      { id:'pinb',kind:'click', target:'#pinGateScreen button', show:function(){return shown('pinGateScreen');},
-        text:'Klik <b>Masuk</b>.' },
+      { id:'usr',  kind:'type',  target:'#loginUser', show:loginBox,
+        text:'Satu gerbang saja: <b>username + password pribadi</b>. Tidak ada lagi password global + PIN.' },
+      { id:'pwd',  kind:'type',  target:'#loginPass', show:loginBox,
+        text:'Ketik apa saja, password otomatis terisi mengikuti username.' },
+      { id:'logb', kind:'click', target:'#loginBtn', show:loginBox,
+        text:'Klik <b>Masuk</b>. Peran akun menentukan tab dan harga yang terlihat.' },
+
+      { id:'ltab', kind:'info',  target:'#ltUsers', show:function(){return shown('landingScreen');},
+        text:'Tab <b>Pengguna &amp; akses</b> (khusus Owner): atur siapa boleh masuk dan proyek apa saja yang boleh dibuka.' },
+      { id:'utbl', kind:'info',  target:'#usersTable', show:function(){return shown('landingScreen');},
+        text:'Daftar akun: peran, proyek yang boleh dibuka, aktif/nonaktif, <b>reset password</b>.' },
+      { id:'uform',kind:'info',  target:'#userFormBox', show:function(){return shown('landingScreen');},
+        text:'Tambah akun: pilih peran, lalu centang proyeknya. <b>Vendor luar</b> cukup proyek yang dia kerjakan. Password sementara wajib diganti saat login pertama.' },
 
       { id:'lstat',kind:'info', target:'#landingStats', show:function(){return shown('landingScreen');},
         text:'Ringkasan semua proyek sekaligus: jumlah proyek, yang butuh perhatian, rata-rata deviasi.' },
@@ -1265,6 +1474,6 @@ function showToast(msg){
   };
 })();
 </script>
-<script src="demo-guide.js?v=3"></script>
+<script src="demo-guide.js?v=4"></script>
 </body>
 </html>

@@ -13,12 +13,21 @@ Rencana backend: Google Sheets + Apps Script Web App; frontend statis di Vercel.
 ## Status
 
 Prototype dengan data dummy. Belum terhubung ke Sheets/Apps Script.
-Password, PIN, dan kode akses di file ini hanya contoh (`demo123`, `1234`, `C40-MIRAL6-X7K2`).
+Username, password, dan kode akses di file ini hanya contoh (tabel akun demo di bawah, dan `C40-MIRAL6-X7K2`).
 
 ## Peran & nominal (prototype)
 
-- **Owner** (PIN `1234`): lihat semua, plus tab *Keuangan & termin* (kontrak, penyesuaian, termin milestone, margin).
-- **Produksi** (PIN `5678`): hanya harga produksi; harga jual, termin, margin, akses klien tidak tampil.
+Login admin: **satu gerbang, username + password pribadi** (tidak ada lagi password global + PIN). Akun demo:
+
+| Username | Password | Peran | Proyek |
+|---|---|---|---|
+| `owner` | `owner123` | Owner | semua |
+| `produksi` | `produksi123` | Produksi | semua |
+| `vendor` | `vendor123` | Produksi (vendor luar) | hanya C40 |
+
+- **Owner**: lihat semua, plus tab *Keuangan & termin* dan tab *Pengguna & akses* di daftar proyek (buat akun, atur peran, centang proyek yang boleh dibuka, reset password, nonaktifkan).
+- **Produksi**: hanya harga produksi; harga jual, termin, margin, akses klien tidak tampil. Proyek yang terlihat mengikuti centang akses.
+- Password sementara dari Owner wajib diganti saat login pertama. Salah 5 kali, akun terkunci 1 menit.
 - **Klien**: nilai per kategori (Rp), pekerjaan terealisasi vs pembayaran masuk, termin per milestone, kurva S + garis pembayaran.
   Contoh C40 = pekerjaan lebih dulu dari pembayaran; D12 = pembayaran (uang muka) lebih dulu.
 

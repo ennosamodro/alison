@@ -87,7 +87,9 @@
     return Math.sqrt(dx * dx + dy * dy);
   }
 
-  /* ---------- auto-isi password / PIN / kode ---------- */
+  /* ---------- auto-isi username / password / kode ---------- */
+  // f.value boleh string atau fungsi(textYangDiketik) -> string (supaya password bisa mengikuti username yang dipilih)
+  function valStr(f, typed) { return typeof f.value === 'function' ? f.value(typed || '') : f.value; }
   function fieldFor(el) {
     var fs = CFG.fields || [];
     for (var i = 0; i < fs.length; i++) if (el && el.matches && el.matches(fs[i].selector)) return fs[i];
@@ -110,13 +112,17 @@
   document.addEventListener('input', function (e) {
     if (!on || typing) return;
     var f = fieldFor(e.target);
-    if (!f || e.target.value === f.value) return;
-    typeOut(e.target, f.value);       // ketik apa saja -> terganti jadi nilai yang benar
+    if (!f) return;
+    var want = valStr(f, e.target.value);
+    if (e.target.value === want) return;
+    typeOut(e.target, want);          // ketik apa saja -> terganti jadi nilai yang benar
   }, true);
   document.addEventListener('keydown', function (e) {
     if (!on || e.key !== 'Enter') return;
     var f = fieldFor(e.target);
-    if (f && e.target.value !== f.value && !typing) e.target.value = f.value; // Enter di kolom kosong: isi dulu, lalu lanjut
+    if (!f || typing) return;
+    var want = valStr(f, e.target.value);
+    if (e.target.value !== want) e.target.value = want;   // Enter di kolom kosong: isi dulu, lalu lanjut
   }, true);
 
   (CFG.fields || []).forEach(function (f) {
@@ -124,8 +130,17 @@
     if (!el || !el.parentNode) return;
     var chip = document.createElement('div');
     chip.className = 'dg-chip';
-    chip.innerHTML = '🔑 ' + f.label + ' &mdash; ketik apa saja, otomatis terisi. <u>Atau klik ini.</u>';
-    chip.onclick = function () { if (!typing) { el.focus(); typeOut(el, f.value); } };
+    var opts = (f.options || []).map(function (o) {
+      return '<u data-v="' + o.value + '" style="margin-right:8px;">' + o.label + '</u>';
+    }).join('');
+    chip.innerHTML = '🔑 ' + f.label + (opts ? '<div style="margin-top:4px;">Klik untuk pilih: ' + opts + '</div>'
+                                                      : ' &mdash; ketik apa saja, otomatis terisi. <u>Atau klik ini.</u>');
+    chip.onclick = function (ev) {
+      if (typing) return;
+      var v = ev.target && ev.target.getAttribute && ev.target.getAttribute('data-v');
+      el.focus();
+      typeOut(el, v || valStr(f, el.value));
+    };
     el.parentNode.insertBefore(chip, el.nextSibling);
   });
 

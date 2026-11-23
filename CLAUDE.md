@@ -103,6 +103,18 @@ Aturan keras:
 
 ## Peran & keuangan (hasil diskusi dengan Alison, 2026-11-23)
 
+**Login admin (diputuskan 2026-11-23): satu gerbang, username + password per orang.** Password global + PIN dibuang
+(login pribadi sudah memberi gerbang sekaligus identitas untuk kolom "Diisi oleh").
+- Tab `Pengguna` di Sheets: username, nama, peran, hash password + salt, status, proyek yang boleh dibuka (atau `semua`), wajib ganti password.
+- Apps Script: cek hash, buat token bersesi berumur terbatas, tiap request cek token + peran + proyek. Kunci akun sementara setelah 5x salah.
+  Pesan galat sama untuk username salah dan password salah. Hash di Apps Script memakai `Utilities.computeDigest` SHA-256 + salt acak per akun.
+- Dikelola Owner di tab **Pengguna & akses** pada halaman daftar proyek (bukan di dalam workspace satu proyek): buat akun (password sementara
+  wajib diganti saat login pertama), edit peran, centang proyek, reset password, nonaktifkan.
+- **Akses per proyek**: Owner dan akun bertanda "semua proyek" melihat semuanya; akun terbatas (mis. vendor luar) hanya proyek yang dicentang.
+  Proyek baru TIDAK otomatis terbuka untuk akun terbatas. Alasannya: vendor tidak boleh melihat harga produksi proyek lain.
+- Guard: tidak bisa menonaktifkan akun sendiri atau Owner aktif terakhir, tidak bisa menurunkan peran Owner terakhir.
+- Terbuka: vendor luar di proyeknya tetap melihat harga produksi proyek itu. Kalau itu tidak boleh, perlu peran ketiga "input progres saja" tanpa harga.
+
 **Peran admin: dua saja.**
 - **Owner** (= Admin): lihat semua. Harga produksi, harga jual, margin, termin, kode akses klien.
 - **Produksi** (menggantikan "Pengawas"): input progres + lihat **harga produksi saja**. Harga jual, termin, margin, tab Akses klien disembunyikan.
